@@ -89,7 +89,7 @@ replicationStatement
     : changeMaster | changeReplicationFilter | purgeBinaryLogs
     | resetMaster | resetSlave | startSlave | stopSlave
     | startGroupReplication | stopGroupReplication
-    | xaStartTransaction | xaEndTransaction | xaPrepareStatement
+    | xaStartTransaction | xaEndTransaction | xaPrepareStatement | xaPreparedListStatement
     | xaCommitWork | xaRollbackWork | xaRecoverWork
     ;
 
@@ -1499,6 +1499,10 @@ xaPrepareStatement
     : XA PREPARE xid
     ;
 
+xaPreparedListStatement
+    : XA_PREPARED_LIST xid
+    ;
+
 xaCommitWork
     : XA COMMIT xid (ONE PHASE)?
     ;
@@ -2857,7 +2861,7 @@ keywordsCanBeId
     | THAN | TP_CONNECTION_ADMIN | TRADITIONAL | TRANSACTION | TRANSACTIONAL | TRIGGERS | TRUNCATE | UNBOUNDED | UNDEFINED | UNDOFILE
     | UNDO_BUFFER_SIZE | UNINSTALL | UNKNOWN | UNTIL | UPGRADE | USA | USER | USE_FRM | USER_RESOURCES | VALIDATION
     | VALUE | VAR_POP | VAR_SAMP | VARIABLES | VARIANCE | VERSIONING | VERSION_TOKEN_ADMIN | VIEW | VIRTUAL | WAIT | WARNINGS
-    | WITHOUT | WORK | WRAPPER | X509 | XA | XA_RECOVER_ADMIN | XML | YES
+    | WITHOUT | WORK | WRAPPER | X509 | XA | XA_RECOVER_ADMIN | XA_PREPARED_LIST | XML | YES
     // MariaDB-specific only
     | BINLOG_MONITOR | BINLOG_REPLAY | CURRENT_ROLE | CYCLE | ENCRYPTED | ENCRYPTION_KEY_ID | FEDERATED_ADMIN
     | INCREMENT | LASTVAL | LOCKED | MAXVALUE | MINVALUE | NEXTVAL | NOCACHE | NOCYCLE | NOMAXVALUE | NOMINVALUE
