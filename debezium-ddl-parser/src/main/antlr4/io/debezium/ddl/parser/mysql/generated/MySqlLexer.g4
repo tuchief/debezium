@@ -744,6 +744,7 @@ X509:                                'X509';
 XA:                                  'XA';
 XML:                                 'XML';
 YES:                                 'YES';
+XA_PREPARED_LIST:                    'XA_PREPARED_LIST';
 
 // Date format Keywords
 
