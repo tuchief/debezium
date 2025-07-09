@@ -490,6 +490,7 @@ tableOption
     | DEFAULT? charSet '='? (charsetName|DEFAULT)                                   #tableOptionCharset
     | (CHECKSUM | PAGE_CHECKSUM) '='? boolValue=('0' | '1')                         #tableOptionChecksum
     | DEFAULT? COLLATE '='? collationName                                           #tableOptionCollate
+    | DUPLICATE '='? STRING_LITERAL                                                 #tableOptionDuplicate
     | COMMENT '='? STRING_LITERAL                                                   #tableOptionComment
     | COMPRESSION '='? (STRING_LITERAL | ID)                                        #tableOptionCompression
     | CONNECTION '='? STRING_LITERAL                                                #tableOptionConnection
