@@ -67,7 +67,7 @@ ddlStatement
     | dropLogfileGroup | dropProcedure | dropFunction
     | dropServer | dropTable | dropTablespace
     | dropTrigger | dropView | dropRole | dropSequence | setRole
-    | renameTable | truncateTable
+    | renameTable | truncateTable | purgeTable
     ;
 
 dmlStatement
@@ -862,9 +862,12 @@ renameTableClause
     ;
 
 truncateTable
-    : TRUNCATE TABLE? tableName waitNowaitClause?
+    : TRUNCATE TABLE? tableName (FOR RECYCLEBIN_VERSION STRING_LITERAL)? waitNowaitClause?
     ;
 
+purgeTable
+    : PURGE TABLE? tableName (FOR RECYCLEBIN_VERSION STRING_LITERAL)? waitNowaitClause?
+    ;
 
 // Data Manipulation Language
 
@@ -2869,6 +2872,8 @@ keywordsCanBeId
     | INCREMENT | LASTVAL | LOCKED | MAXVALUE | MINVALUE | NEXTVAL | NOCACHE | NOCYCLE | NOMAXVALUE | NOMINVALUE
     | PERSISTENT | PREVIOUS | READ_ONLY_ADMIN | REPLICA | REPLICATION_MASTER_ADMIN | RESTART | SEQUENCE | SETVAL
     | SKIP_ | STATEMENT | UUID | VIA | MONITOR | READ_ONLY| REPLAY | USER_STATISTICS | CLIENT_STATISTICS | INDEX_STATISTICS | TABLE_STATISTICS | FIREWALL_RULES
+    // GoldenDB-specific only
+    | RECYCLEBIN_VERSION | PURGE
     ;
 
 functionNameBase

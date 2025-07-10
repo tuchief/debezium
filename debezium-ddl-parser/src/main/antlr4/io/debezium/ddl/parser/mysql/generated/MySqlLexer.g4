@@ -745,6 +745,7 @@ XA:                                  'XA';
 XML:                                 'XML';
 YES:                                 'YES';
 XA_PREPARED_LIST:                    'XA_PREPARED_LIST';
+RECYCLEBIN_VERSION:                  'RECYCLEBIN_VERSION';
 
 // Date format Keywords
 
