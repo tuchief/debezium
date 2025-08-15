@@ -820,7 +820,7 @@ dropServer
 
 dropTable
     : DROP TEMPORARY? TABLE ifExists?
-      tables waitNowaitClause? dropType=(RESTRICT | CASCADE)?
+      tables (FOR RECYCLEBIN_VERSION STRING_LITERAL)? waitNowaitClause? dropType=(RESTRICT | CASCADE)?
     ;
 
 dropTablespace
