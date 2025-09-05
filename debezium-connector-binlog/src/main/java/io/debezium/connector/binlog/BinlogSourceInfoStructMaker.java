@@ -32,6 +32,7 @@ public abstract class BinlogSourceInfoStructMaker<T extends BinlogSourceInfo> ex
                 .field(BinlogSourceInfo.BINLOG_ROW_IN_EVENT_OFFSET_KEY, Schema.INT32_SCHEMA)
                 .field(BinlogSourceInfo.THREAD_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(BinlogSourceInfo.QUERY_KEY, Schema.OPTIONAL_STRING_SCHEMA)
+                .field(BinlogSourceInfo.LC_TIME_NAMES_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .build();
     }
 
@@ -59,6 +60,9 @@ public abstract class BinlogSourceInfoStructMaker<T extends BinlogSourceInfo> ex
         }
         if (sourceInfo.getQuery() != null) {
             result.put(BinlogSourceInfo.QUERY_KEY, sourceInfo.getQuery());
+        }
+        if (sourceInfo.getLcTimeNames() != null) {
+            result.put(BinlogSourceInfo.LC_TIME_NAMES_KEY, sourceInfo.getLcTimeNames());
         }
         return result;
     }

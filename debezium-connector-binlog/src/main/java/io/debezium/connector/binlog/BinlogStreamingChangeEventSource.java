@@ -706,6 +706,18 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         QueryEventData command = unwrapData(event);
         LOGGER.debug("Received query command: {}", event);
         String sql = command.getSql().trim();
+        LOGGER.info("Received sql : {}", sql);
+
+        EventType eventType = event.getHeader().getEventType();
+        if (eventType == EventType.QUERY) {
+            QueryEventData queryEventData = event.getData();
+            byte[] statusVars = queryEventData.getStatusVars();
+            int lcTimeNames = parseLcTimeNames(statusVars);
+            System.out.println("解析到 lc_time_names = " + lcTimeNames);
+            if (lcTimeNames != -1) {
+                offsetContext.getSource().setLcTimeNames(String.valueOf(lcTimeNames));
+            }
+        }
         if (sql.equalsIgnoreCase("BEGIN")) {
             handleTransactionBegin(partition, offsetContext, event, command.getThreadId());
             return;
@@ -1432,5 +1444,130 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             }
             return true;
         }
+    }
+
+    /**
+     * 解析 statusVars 中的 lc_time_names 值
+     * @param statusVars QueryEventData 中的 statusVars 字节数组
+     * @return lc_time_names 的值，如果未找到返回 -1
+     */
+    private static int parseLcTimeNames(byte[] statusVars) {
+        int index = 0;
+        while (index < statusVars.length) {
+            int varType = statusVars[index] & 0xFF;
+            index++;
+
+            // 每次跳过前都先检查
+            if (index >= statusVars.length)
+                break;
+
+            switch (varType) {
+                case 0: // Q_FLAGS2_CODE
+                    if (index + 4 > statusVars.length)
+                        return -1;
+                    index += 4;
+                    break;
+
+                case 1: // Q_SQL_MODE_CODE
+                    if (index + 8 > statusVars.length)
+                        return -1;
+                    index += 8;
+                    break;
+
+                case 2: // Q_CATALOG_CODE
+                    int len = statusVars[index] & 0xFF;
+                    if (index + 1 + len > statusVars.length)
+                        return -1;
+                    index += 1 + len;
+                    break;
+
+                case 3: // Q_AUTO_INCREMENT
+                    if (index + 4 > statusVars.length)
+                        return -1;
+                    index += 4;
+                    break;
+
+                case 4: // Q_CHARSET_CODE
+                    if (index + 6 > statusVars.length)
+                        return -1;
+                    index += 6;
+                    break;
+
+                case 5: // Q_TIME_ZONE_CODE
+                    int tzLen = statusVars[index] & 0xFF;
+                    if (index + 1 + tzLen > statusVars.length)
+                        return -1;
+                    index += 1 + tzLen;
+                    break;
+
+                case 6: // Q_CATALOG_NZ_CODE
+                    int catLen = statusVars[index] & 0xFF;
+                    if (index + 1 + catLen > statusVars.length)
+                        return -1;
+                    index += 1 + catLen;
+                    break;
+
+                case 7: // Q_LC_TIME_NAMES_CODE
+                    if (index + 2 > statusVars.length)
+                        return -1;
+                    int lcTimeNames = (statusVars[index] & 0xFF) |
+                            ((statusVars[index + 1] & 0xFF) << 8);
+                    return lcTimeNames;
+
+                case 8: // Q_CHARSET_DATABASE_CODE
+                    if (index + 2 > statusVars.length)
+                        return -1;
+                    index += 2;
+                    break;
+
+                case 9: // Q_TABLE_MAP_FOR_UPDATE_CODE
+                    if (index + 8 > statusVars.length)
+                        return -1;
+                    index += 8;
+                    break;
+
+                case 10: // Q_MASTER_DATA_WRITTEN_CODE
+                    if (index + 4 > statusVars.length)
+                        return -1;
+                    index += 4;
+                    break;
+
+                case 11: // Q_INVOKER
+                    int userLen = statusVars[index] & 0xFF;
+                    if (index + 1 + userLen > statusVars.length)
+                        return -1;
+                    index += 1 + userLen;
+
+                    int hostLen = statusVars[index] & 0xFF;
+                    if (index + 1 + hostLen > statusVars.length)
+                        return -1;
+                    index += 1 + hostLen;
+                    break;
+
+                case 12: // Q_UPDATED_DB_NAMES
+                    int numDbs = statusVars[index] & 0xFF;
+                    index++;
+                    for (int i = 0; i < numDbs; i++) {
+                        if (index >= statusVars.length)
+                            return -1;
+                        int dbLen = statusVars[index] & 0xFF;
+                        if (index + 1 + dbLen > statusVars.length)
+                            return -1;
+                        index += 1 + dbLen;
+                    }
+                    break;
+
+                case 13: // Q_MICROSECONDS
+                    if (index + 3 > statusVars.length)
+                        return -1;
+                    index += 3;
+                    break;
+
+                default:
+                    // 碰到未知类型，直接退出，不再解析
+                    return -1;
+            }
+        }
+        return -1;
     }
 }

@@ -95,6 +95,7 @@ public class BinlogSourceInfo extends BaseSourceInfo {
     public static final String BINLOG_ROW_IN_EVENT_OFFSET_KEY = "row";
     public static final String THREAD_KEY = "thread";
     public static final String QUERY_KEY = "query";
+    public static final String LC_TIME_NAMES_KEY = "lc_time";
 
     private String currentGtid;
     private String currentBinlogFilename;
@@ -104,6 +105,7 @@ public class BinlogSourceInfo extends BaseSourceInfo {
     private Instant sourceTime = null;
     private long threadId = -1L;
     private String currentQuery = null;
+    private String lcTimeNames = null;
     private Set<TableId> tableIds;
     private String databaseName;
 
@@ -143,6 +145,22 @@ public class BinlogSourceInfo extends BaseSourceInfo {
      */
     public String getQuery() {
         return this.currentQuery;
+    }
+
+    /**
+     * Set the lc_time_names value.
+     *
+     * @param lcTimeNames the lc_time_names value
+     */
+    public void setLcTimeNames(String lcTimeNames) {
+        this.lcTimeNames = lcTimeNames;
+    }
+
+    /**
+     * @return the current lc_time_names value, or null if not set
+     */
+    public String getLcTimeNames() {
+        return this.lcTimeNames;
     }
 
     /**

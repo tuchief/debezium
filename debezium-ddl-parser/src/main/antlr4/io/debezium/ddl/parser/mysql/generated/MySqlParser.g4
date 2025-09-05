@@ -1845,6 +1845,9 @@ privilege
 
     // MySQL on Amazon RDS
     | LOAD FROM S3 | SELECT INTO S3 | INVOKE LAMBDA
+
+    // GoldenDB
+    | CN_SESSION_VARIABLES_ADMIN
     ;
 
 privilegeLevel
