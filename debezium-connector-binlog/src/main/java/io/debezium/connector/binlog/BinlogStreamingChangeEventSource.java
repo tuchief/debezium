@@ -1450,6 +1450,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
      * 解析 statusVars 中的 lc_time_names 值
      * @param statusVars QueryEventData 中的 statusVars 字节数组
      * @return lc_time_names 的值，如果未找到返回 -1
+     * 参考：https://dev.mysql.com/doc/dev/mysql-server/8.4.6/classmysql_1_1binlog_1_1event_1_1Query__event.html#acee6c013bce208f87cd65f318372b58a
      */
     private static int parseLcTimeNames(byte[] statusVars) {
         int index = 0;
