@@ -654,6 +654,7 @@ public abstract class AbstractLogMinerEventProcessor<T extends Transaction> impl
                 offsetContext.setRedoThread(row.getThread());
                 offsetContext.setRsId(event.getRsId());
                 offsetContext.setRowId(event.getRowId());
+                offsetContext.setTxName(row.getTxName());
 
                 if (event instanceof RedoSqlDmlEvent) {
                     offsetContext.setRedoSql(((RedoSqlDmlEvent) event).getRedoSql());

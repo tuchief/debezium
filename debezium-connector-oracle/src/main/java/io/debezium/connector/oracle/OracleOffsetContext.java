@@ -309,6 +309,10 @@ public class OracleOffsetContext extends CommonOffsetContext<SourceInfo> {
         sourceInfo.setRowId(rowId);
     }
 
+    public void setTxName(String txName) {
+        sourceInfo.setTxName(txName);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OracleOffsetContext [scn=").append(getScn());

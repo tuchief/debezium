@@ -28,6 +28,7 @@ public class SourceInfo extends BaseSourceInfo {
     public static final String SCN_INDEX_KEY = "scn_idx";
     public static final String REDO_SQL = "redo_sql";
     public static final String ROW_ID = "row_id";
+    public static final String TXNAME_KEY = "txName";
 
     // Tracks thread-specific values when using multiple threads during snapshot
     private final ThreadLocal<String> rowId = new ThreadLocal<>();
@@ -45,6 +46,7 @@ public class SourceInfo extends BaseSourceInfo {
     private long ssn;
     private Long scnIndex;
     private String redoSql;
+    private String txName;
 
     protected SourceInfo(OracleConnectorConfig connectorConfig) {
         super(connectorConfig);
@@ -128,6 +130,14 @@ public class SourceInfo extends BaseSourceInfo {
 
     public void setRedoSql(String redoSql) {
         this.redoSql = redoSql;
+    }
+
+    public String getTxName() {
+        return txName;
+    }
+
+    public void setTxName(String txName) {
+        this.txName = txName;
     }
 
     public String getRowId() {
