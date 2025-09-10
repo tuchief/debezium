@@ -148,7 +148,7 @@ createIndex
       intimeAction=(ONLINE | OFFLINE)?
       indexCategory=(UNIQUE | FULLTEXT | SPATIAL)? INDEX
       ifNotExists?                                              // ifNotExists is MariaDB-specific only
-      uid indexType?
+      fullId indexType?
       ON tableName indexColumnNames
       waitNowaitClause?                                         // waitNowaitClause is MariaDB-specific only
       indexOption*
