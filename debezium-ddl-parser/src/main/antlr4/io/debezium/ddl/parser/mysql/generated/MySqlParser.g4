@@ -793,7 +793,8 @@ dropEvent
 
 dropIndex
     : DROP INDEX ifExists? intimeAction=(ONLINE | OFFLINE)?        // here ifExists is MariaDB-specific only
-      fullId ON tableName
+      indexName=fullId
+      (ON tableName)?
       (
         ALGORITHM '='? algType=(DEFAULT | INPLACE | COPY)
         | LOCK '='?
