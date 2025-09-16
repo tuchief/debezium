@@ -713,9 +713,10 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             QueryEventData queryEventData = event.getData();
             byte[] statusVars = queryEventData.getStatusVars();
             int lcTimeNames = parseLcTimeNames(statusVars);
-            System.out.println("解析到 lc_time_names = " + lcTimeNames);
             if (lcTimeNames != -1) {
                 offsetContext.getSource().setLcTimeNames(String.valueOf(lcTimeNames));
+            } else {
+                offsetContext.getSource().setLcTimeNames(null);
             }
         }
         if (sql.equalsIgnoreCase("BEGIN")) {
