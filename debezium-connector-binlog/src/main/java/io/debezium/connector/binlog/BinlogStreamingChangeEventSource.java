@@ -708,6 +708,16 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         String sql = command.getSql().trim();
         LOGGER.info("Received sql : {}", sql);
 
+        // Remove client comments (e.g. /* APPLICATIONNAME=DBEAVER ULTIMATE 25.2.0 - SQLEDITOR <SCRIPT-282.SQL> */ SQL_STATEMENT)
+        sql = removeClientComments(sql);
+        LOGGER.info("SQL after removing client comments: {}", sql);
+
+        // Transform DROP INDEX statements to DROP KEY for compatibility with Debezium parser
+        if (isAlterTableDropIndexStatement(sql)) {
+            sql = transformDropIndexToDropKey(sql);
+            LOGGER.info("Transformed SQL from DROP INDEX to DROP KEY: {}", sql);
+        }
+
         EventType eventType = event.getHeader().getEventType();
         if (eventType == EventType.QUERY) {
             QueryEventData queryEventData = event.getData();
@@ -1571,5 +1581,48 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             }
         }
         return -1;
+    }
+
+    /**
+     * Remove comments added by database clients like DBeaver
+     *
+     * @param sql the SQL statement to clean
+     * @return the SQL statement without client comments
+     */
+    private String removeClientComments(String sql) {
+        if (sql == null) {
+            return null;
+        }
+        // Remove leading comments like /* APPLICATIONNAME=DBEAVER ... */
+        String cleanedSql = sql.replaceFirst("^/\\*.*?\\*/\\s*", "");
+        return cleanedSql;
+    }
+
+    /**
+     * Check if the SQL statement is an ALTER TABLE ... DROP INDEX statement
+     *
+     * @param sql the SQL statement to check
+     * @return true if it's an ALTER TABLE ... DROP INDEX statement, false otherwise
+     */
+    private boolean isAlterTableDropIndexStatement(String sql) {
+        if (sql == null) {
+            return false;
+        }
+        String upperSql = sql.trim().toUpperCase();
+        return upperSql.matches("^ALTER\\s+TABLE\\s+.+\\s+DROP\\s+INDEX\\s+.+");
+    }
+
+    /**
+     * Transform DROP INDEX statement to DROP KEY statement
+     *
+     * @param sql the original SQL statement
+     * @return the transformed SQL statement with DROP KEY instead of DROP INDEX
+     */
+    private String transformDropIndexToDropKey(String sql) {
+        if (sql == null) {
+            return null;
+        }
+        // Case-insensitive replacement of "DROP INDEX" with "DROP KEY"
+        return sql.replaceAll("(?i)\\bDROP\\s+INDEX\\b", "DROP KEY");
     }
 }
