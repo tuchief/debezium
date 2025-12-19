@@ -854,8 +854,8 @@ dropSequence
 //    Other DDL statements
 
 renameTable
-    : RENAME TABLE
-    renameTableClause (',' renameTableClause)*
+    : RENAME TABLE renameTableClause (',' renameTableClause)*
+    | RENAME renameTableClause (',' renameTableClause)*  // Supports the RENAME syntax for Golden DB databases without the TABLE keyword.
     ;
 
 renameTableClause
