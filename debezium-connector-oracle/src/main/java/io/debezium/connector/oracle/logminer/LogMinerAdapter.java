@@ -265,7 +265,7 @@ public class LogMinerAdapter extends AbstractStreamingAdapter<LogMinerStreamingC
     private void addLogsToSession(List<LogFile> logs, OracleConnection connection) throws SQLException {
         for (LogFile logFile : logs) {
             LOGGER.debug("\tAdding log: {}", logFile.getFileName());
-            connection.executeWithoutCommitting(SqlUtils.addLogFileStatement("DBMS_LOGMNR.ADDFILE", logFile.getFileName()));
+            connection.executeWithoutCommitting(SqlUtils.addLogFileStatement("SYS.DBMS_LOGMNR.ADDFILE", logFile.getFileName()));
         }
     }
 
@@ -273,7 +273,7 @@ public class LogMinerAdapter extends AbstractStreamingAdapter<LogMinerStreamingC
         // We explicitly use the ONLINE data dictionary mode here.
         // Since we are only concerned about non-SQL columns, it is safe to always use this mode
         final String query = "BEGIN sys.dbms_logmnr.start_logmnr("
-                + "OPTIONS => DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG + DBMS_LOGMNR.NO_ROWID_IN_STMT);"
+                + "OPTIONS => SYS.DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG + SYS.DBMS_LOGMNR.NO_ROWID_IN_STMT);"
                 + "END;";
         LOGGER.debug("\tStarting mining session");
         connection.executeWithoutCommitting(query);

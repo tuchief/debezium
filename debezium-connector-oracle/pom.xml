@@ -7,7 +7,7 @@
         <relativePath>../debezium-parent/pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>debezium-connector-oracle</artifactId>
+    <artifactId>dataknown-debezium-connector-oracle</artifactId>
     <name>Debezium Connector for Oracle</name>
     <packaging>jar</packaging>
 
@@ -225,6 +225,7 @@
     </properties>
 
     <build>
+        <finalName>${project.artifactId}-3.0.3-260323.Final</finalName>
         <resources>
             <!-- Apply the properties set in the POM to the resource files -->
             <resource>

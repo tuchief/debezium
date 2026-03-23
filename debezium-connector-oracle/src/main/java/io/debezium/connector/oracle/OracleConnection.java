@@ -827,7 +827,7 @@ public class OracleConnection extends JdbcConnection {
                                 .enabledTime(readTimestampAsInstant(rs, "ENABLE_TIME"))
                                 .disabledScn(readScnColumnAsScn(rs, "DISABLE_CHANGE#"))
                                 .disabledTime(readTimestampAsInstant(rs, "DISABLE_TIME"));
-                        if (getOracleVersion().getMajor() >= 11) {
+                        if (getOracleVersion().getMajor() >= 10) {
                             threadBuilder = threadBuilder.lastRedoSequenceNumber(rs.getLong("LAST_REDO_SEQUENCE#"))
                                     .lastRedoBlock(rs.getLong("LAST_REDO_BLOCK"))
                                     .lastRedoScn(readScnColumnAsScn(rs, "LAST_REDO_CHANGE#"))

@@ -399,7 +399,7 @@ public class LogMinerStreamingChangeEventSource implements StreamingChangeEventS
             currentLogFiles = logCollector.getLogs(startScn);
             for (LogFile logFile : currentLogFiles) {
                 LOGGER.trace("Adding log file {} to the mining session.", logFile.getFileName());
-                String addLogFileStatement = SqlUtils.addLogFileStatement("DBMS_LOGMNR.ADDFILE", logFile.getFileName());
+                String addLogFileStatement = SqlUtils.addLogFileStatement("SYS.DBMS_LOGMNR.ADDFILE", logFile.getFileName());
                 try (CallableStatement statement = connection.connection(false).prepareCall(addLogFileStatement)) {
                     statement.execute();
                 }
@@ -471,7 +471,7 @@ public class LogMinerStreamingChangeEventSource implements StreamingChangeEventS
      */
     private void buildDataDictionary(OracleConnection connection) throws SQLException {
         LOGGER.trace("Building data dictionary");
-        connection.executeWithoutCommitting("BEGIN DBMS_LOGMNR_D.BUILD (options => DBMS_LOGMNR_D.STORE_IN_REDO_LOGS); END;");
+        connection.executeWithoutCommitting("BEGIN SYS.DBMS_LOGMNR_D.BUILD (options => SYS.DBMS_LOGMNR_D.STORE_IN_REDO_LOGS); END;");
     }
 
     /**

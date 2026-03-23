@@ -202,19 +202,19 @@ public class SqlUtils {
     static String startLogMinerStatement(Scn startScn, Scn endScn, OracleConnectorConfig.LogMiningStrategy strategy, boolean continuousMining) {
         String miningStrategy;
         if (strategy.equals(OracleConnectorConfig.LogMiningStrategy.CATALOG_IN_REDO)) {
-            miningStrategy = "DBMS_LOGMNR.DICT_FROM_REDO_LOGS + DBMS_LOGMNR.DDL_DICT_TRACKING ";
+            miningStrategy = "SYS.DBMS_LOGMNR.DICT_FROM_REDO_LOGS + SYS.DBMS_LOGMNR.DDL_DICT_TRACKING ";
         }
         else {
-            miningStrategy = "DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG ";
+            miningStrategy = "SYS.DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG ";
         }
         if (continuousMining) {
-            miningStrategy += " + DBMS_LOGMNR.CONTINUOUS_MINE ";
+            miningStrategy += " + SYS.DBMS_LOGMNR.CONTINUOUS_MINE ";
         }
         return "BEGIN sys.dbms_logmnr.start_logmnr(" +
                 "startScn => '" + startScn + "', " +
                 "endScn => '" + endScn + "', " +
                 "OPTIONS => " + miningStrategy +
-                " + DBMS_LOGMNR.NO_ROWID_IN_STMT);" +
+                " + SYS.DBMS_LOGMNR.NO_ROWID_IN_STMT);" +
                 "END;";
     }
 
