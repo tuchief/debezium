@@ -182,16 +182,22 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         if (!skippedOperations.contains(Envelope.Operation.CREATE)) {
             eventHandlers.put(EventType.WRITE_ROWS, (event) -> handleInsert(partition, effectiveOffsetContext, event));
             eventHandlers.put(EventType.EXT_WRITE_ROWS, (event) -> handleInsert(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.WRITE_ROWS_COMPRESSED, (event) -> handleInsert(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.WRITE_ROWS_COMPRESSED_V1, (event) -> handleInsert(partition, effectiveOffsetContext, event));
         }
 
         if (!skippedOperations.contains(Envelope.Operation.UPDATE)) {
             eventHandlers.put(EventType.UPDATE_ROWS, (event) -> handleUpdate(partition, effectiveOffsetContext, event));
             eventHandlers.put(EventType.EXT_UPDATE_ROWS, (event) -> handleUpdate(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.UPDATE_ROWS_COMPRESSED, (event) -> handleUpdate(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.UPDATE_ROWS_COMPRESSED_V1, (event) -> handleUpdate(partition, effectiveOffsetContext, event));
         }
 
         if (!skippedOperations.contains(Envelope.Operation.DELETE)) {
             eventHandlers.put(EventType.DELETE_ROWS, (event) -> handleDelete(partition, effectiveOffsetContext, event));
             eventHandlers.put(EventType.EXT_DELETE_ROWS, (event) -> handleDelete(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.DELETE_ROWS_COMPRESSED, (event) -> handleDelete(partition, effectiveOffsetContext, event));
+            eventHandlers.put(EventType.DELETE_ROWS_COMPRESSED_V1, (event) -> handleDelete(partition, effectiveOffsetContext, event));
         }
 
         eventHandlers.put(EventType.VIEW_CHANGE, (event) -> viewChange(effectiveOffsetContext, event));
@@ -500,7 +506,6 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                         tableMapEventByTableId, eventDeserializationFailureHandlingMode).setMayContainExtraInformation(true));
         eventDeserializer.setEventDataDeserializer(EventType.TRANSACTION_PAYLOAD,
                 new TransactionPayloadDeserializer(tableMapEventByTableId, eventDeserializationFailureHandlingMode));
-
         return eventDeserializer;
     }
 
@@ -725,7 +730,8 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             int lcTimeNames = parseLcTimeNames(statusVars);
             if (lcTimeNames != -1) {
                 offsetContext.getSource().setLcTimeNames(String.valueOf(lcTimeNames));
-            } else {
+            }
+            else {
                 offsetContext.getSource().setLcTimeNames(null);
             }
         }
@@ -1470,19 +1476,21 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             index++;
 
             // 每次跳过前都先检查
-            if (index >= statusVars.length)
+            if (index >= statusVars.length) {
                 break;
-
+            }
             switch (varType) {
                 case 0: // Q_FLAGS2_CODE
-                    if (index + 4 > statusVars.length)
+                    if (index + 4 > statusVars.length) {
                         return -1;
+                    }
                     index += 4;
                     break;
 
                 case 1: // Q_SQL_MODE_CODE
-                    if (index + 8 > statusVars.length)
+                    if (index + 8 > statusVars.length) {
                         return -1;
+                    }
                     index += 8;
                     break;
 
