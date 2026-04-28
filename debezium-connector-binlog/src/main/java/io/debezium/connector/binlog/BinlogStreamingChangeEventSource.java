@@ -56,6 +56,9 @@ import com.github.shyiko.mysql.binlog.event.TableMapEventData;
 import com.github.shyiko.mysql.binlog.event.TransactionPayloadEventData;
 import com.github.shyiko.mysql.binlog.event.UpdateRowsEventData;
 import com.github.shyiko.mysql.binlog.event.WriteRowsEventData;
+import com.github.shyiko.mysql.binlog.deserializer.CompressedDeleteRowsEventDeserializer;
+import com.github.shyiko.mysql.binlog.deserializer.CompressedUpdateRowsEventDeserializer;
+import com.github.shyiko.mysql.binlog.deserializer.CompressedWriteRowsEventDeserializer;
 import com.github.shyiko.mysql.binlog.event.deserialization.EventDataDeserializationException;
 import com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer;
 import com.github.shyiko.mysql.binlog.event.deserialization.GtidEventDataDeserializer;
@@ -504,6 +507,33 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         eventDeserializer.setEventDataDeserializer(EventType.EXT_DELETE_ROWS,
                 new RowDeserializers.DeleteRowsDeserializer(
                         tableMapEventByTableId, eventDeserializationFailureHandlingMode).setMayContainExtraInformation(true));
+
+        // MariaDB compressed row events - delegate to the same custom RowDeserializers
+        eventDeserializer.setEventDataDeserializer(EventType.WRITE_ROWS_COMPRESSED,
+                new CompressedWriteRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.WriteRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+        eventDeserializer.setEventDataDeserializer(EventType.WRITE_ROWS_COMPRESSED_V1,
+                new CompressedWriteRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.WriteRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+        eventDeserializer.setEventDataDeserializer(EventType.UPDATE_ROWS_COMPRESSED,
+                new CompressedUpdateRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.UpdateRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+        eventDeserializer.setEventDataDeserializer(EventType.UPDATE_ROWS_COMPRESSED_V1,
+                new CompressedUpdateRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.UpdateRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+        eventDeserializer.setEventDataDeserializer(EventType.DELETE_ROWS_COMPRESSED,
+                new CompressedDeleteRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.DeleteRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+        eventDeserializer.setEventDataDeserializer(EventType.DELETE_ROWS_COMPRESSED_V1,
+                new CompressedDeleteRowsEventDeserializer(tableMapEventByTableId,
+                        new RowDeserializers.DeleteRowsDeserializer(
+                                tableMapEventByTableId, eventDeserializationFailureHandlingMode)));
+
         eventDeserializer.setEventDataDeserializer(EventType.TRANSACTION_PAYLOAD,
                 new TransactionPayloadDeserializer(tableMapEventByTableId, eventDeserializationFailureHandlingMode));
         return eventDeserializer;
