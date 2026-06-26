@@ -180,6 +180,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         eventHandlers.put(EventType.ROTATE, (event) -> handleRotateLogsEvent(effectiveOffsetContext, event));
         eventHandlers.put(EventType.TABLE_MAP, (event) -> handleUpdateTableMetadata(partition, effectiveOffsetContext, event));
         eventHandlers.put(EventType.QUERY, (event) -> handleQueryEvent(partition, effectiveOffsetContext, event));
+        eventHandlers.put(EventType.QUERY_COMPRESSED, (event) -> handleQueryEvent(partition, effectiveOffsetContext, event));
         eventHandlers.put(EventType.TRANSACTION_PAYLOAD, (event) -> handleTransactionPayload(partition, effectiveOffsetContext, event));
 
         if (!skippedOperations.contains(Envelope.Operation.CREATE)) {

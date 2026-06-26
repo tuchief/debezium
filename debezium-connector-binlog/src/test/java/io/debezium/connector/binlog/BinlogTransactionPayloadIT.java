@@ -131,6 +131,37 @@ public abstract class BinlogTransactionPayloadIT<C extends SourceConnector> exte
         assertThat(orderDmls).hasSize(4);
     }
 
+    @Test
+    public void shouldCaptureDdlEvents() throws Exception {
+        config = DATABASE.defaultConfig()
+                .with(BinlogConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(BinlogConnectorConfig.SNAPSHOT_MODE, BinlogConnectorConfig.SnapshotMode.NEVER)
+                .build();
+
+        start(getConnectorClass(), config);
+
+        Debug.enable();
+        assertConnectorIsRunning();
+
+        int numCreateDatabase = 1;
+        int numCreateTables = 3;
+        SourceRecords records = consumeRecordsByTopic(numCreateDatabase + numCreateTables);
+        assertThat(records).isNotNull();
+        records.forEach(this::validate);
+
+        try (BinlogTestConnection db = getTestDatabaseConnection(DATABASE.getDatabaseName())) {
+            try (JdbcConnection connection = db.connect()) {
+                db.setBinlogCompressionOn();
+                connection.execute("CREATE TABLE dbz_compressed_ddl (id INT NOT NULL PRIMARY KEY)");
+            }
+        }
+
+        SourceRecords ddlRecords = consumeRecordsByTopic(1);
+        assertThat(ddlRecords.ddlRecordsForDatabase(DATABASE.getDatabaseName()))
+                .extracting(record -> ((Struct) record.value()).getString("ddl"))
+                .anyMatch(ddl -> ddl.contains("dbz_compressed_ddl"));
+    }
+
     private byte[] uuidToByteArray(UUID uuid) {
         ByteBuffer buffer = ByteBuffer.wrap(new byte[16]);
         buffer.putLong(uuid.getMostSignificantBits());
