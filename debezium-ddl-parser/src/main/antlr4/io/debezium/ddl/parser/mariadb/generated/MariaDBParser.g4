@@ -2252,7 +2252,7 @@ constant
 //    Data Types
 
 dataType
-    : typeName = (
+    : MARIADB_SCHEMA_DOT? typeName = (
         CHAR
         | CHARACTER
         | VARCHAR
@@ -2264,10 +2264,10 @@ dataType
         | NVARCHAR
         | LONG
     ) VARYING? lengthOneDimension? BINARY? (charSet charsetName)? (COLLATE collationName | BINARY)? # stringDataType
-    | NATIONAL typeName = (VARCHAR | CHARACTER | CHAR) lengthOneDimension? BINARY?                  # nationalStringDataType
-    | NCHAR typeName = VARCHAR lengthOneDimension? BINARY?                                          # nationalStringDataType
-    | NATIONAL typeName = (CHAR | CHARACTER) VARYING lengthOneDimension? BINARY?                    # nationalVaryingStringDataType
-    | typeName = (
+    | MARIADB_SCHEMA_DOT? NATIONAL typeName = (VARCHAR | CHARACTER | CHAR) lengthOneDimension? BINARY? # nationalStringDataType
+    | MARIADB_SCHEMA_DOT? NCHAR typeName = VARCHAR lengthOneDimension? BINARY?                         # nationalStringDataType
+    | MARIADB_SCHEMA_DOT? NATIONAL typeName = (CHAR | CHARACTER) VARYING lengthOneDimension? BINARY?   # nationalVaryingStringDataType
+    | MARIADB_SCHEMA_DOT? typeName = (
         TINYINT
         | SMALLINT
         | MEDIUMINT
@@ -2281,17 +2281,17 @@ dataType
         | INT4
         | INT8
     ) lengthOneDimension? (SIGNED | UNSIGNED | ZEROFILL)*                              # dimensionDataType
-    | typeName = REAL lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)*              # dimensionDataType
-    | typeName = DOUBLE PRECISION? lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)* # dimensionDataType
-    | typeName = (DECIMAL | DEC | FIXED | NUMERIC | FLOAT | FLOAT4 | FLOAT8) lengthTwoOptionalDimension? (
+    | MARIADB_SCHEMA_DOT? typeName = REAL lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)*              # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = DOUBLE PRECISION? lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)* # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (DECIMAL | DEC | FIXED | NUMERIC | FLOAT | FLOAT4 | FLOAT8) lengthTwoOptionalDimension? (
         SIGNED
         | UNSIGNED
         | ZEROFILL
     )*                                                                                                      # dimensionDataType
-    | typeName = (DATE | TINYBLOB | MEDIUMBLOB | LONGBLOB | BOOL | BOOLEAN | SERIAL)                        # simpleDataType
-    | typeName = (BIT | TIME | TIMESTAMP | DATETIME | BINARY | VARBINARY | BLOB | YEAR) lengthOneDimension? # dimensionDataType
-    | typeName = (ENUM | SET) collectionOptions BINARY? (charSet charsetName)?                              # collectionDataType
-    | typeName = (
+    | MARIADB_SCHEMA_DOT? typeName = (DATE | TINYBLOB | MEDIUMBLOB | LONGBLOB | BOOL | BOOLEAN | SERIAL)                        # simpleDataType
+    | MARIADB_SCHEMA_DOT? typeName = (BIT | TIME | TIMESTAMP | DATETIME | BINARY | VARBINARY | BLOB | YEAR) lengthOneDimension? # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (ENUM | SET) collectionOptions BINARY? (charSet charsetName)?                              # collectionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (
         GEOMETRYCOLLECTION
         | GEOMCOLLECTION
         | LINESTRING
@@ -2303,8 +2303,8 @@ dataType
         | JSON
         | GEOMETRY
     )                                                                                  # spatialDataType
-    | typeName = LONG VARCHAR? BINARY? (charSet charsetName)? (COLLATE collationName)? # longVarcharDataType // LONG VARCHAR is the same as LONG
-    | LONG VARBINARY                                                                   # longVarbinaryDataType
+    | MARIADB_SCHEMA_DOT? typeName = LONG VARCHAR? BINARY? (charSet charsetName)? (COLLATE collationName)? # longVarcharDataType // LONG VARCHAR is the same as LONG
+    | MARIADB_SCHEMA_DOT? LONG VARBINARY                                                                   # longVarbinaryDataType
     ;
 
 collectionOptions
@@ -2427,7 +2427,7 @@ functionCall
     : specificFunction                         # specificFunctionCall
     | aggregateWindowedFunction                # aggregateFunctionCall
     | nonAggregateWindowedFunction             # nonAggregateFunctionCall
-    | scalarFunctionName '(' functionArgs? ')' # scalarFunctionCall
+    | MARIADB_SCHEMA_DOT? scalarFunctionName '(' functionArgs? ')' # scalarFunctionCall
     | fullId '(' functionArgs? ')'             # udfFunctionCall
     | passwordFunctionClause                   # passwordFunctionCall
     ;

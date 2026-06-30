@@ -32,6 +32,72 @@ import io.debezium.relational.ddl.SimpleDdlParserListener;
  */
 public class MariaDbAntlrDdlParserTest extends BinlogAntlrDdlParserTest<MariaDbValueConverters, MariaDbDefaultValueConverter, MariaDbAntlrDdlParser> {
     @Test
+    public void shouldParseMariaDbSchemaQualifiedDateInOracleMode() {
+        final SimpleDdlParserListener listener = new SimpleDdlParserListener();
+        final MariaDbAntlrDdlParser parser = getParser(listener);
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE \"test_column\" (\n" +
+                "  \"column_bigint\" bigint(20) NOT NULL,\n" +
+                "  \"column_char\" char(1) DEFAULT NULL,\n" +
+                "  \"column_varchar\" varchar(255) DEFAULT NULL,\n" +
+                "  \"column_binary\" binary(255) DEFAULT NULL,\n" +
+                "  \"column_varbinary\" varbinary(255) DEFAULT NULL,\n" +
+                "  \"column_tinyblob\" tinyblob DEFAULT NULL,\n" +
+                "  \"column_blob\" blob(65535) DEFAULT NULL,\n" +
+                "  \"column_mediumblob\" mediumblob DEFAULT NULL,\n" +
+                "  \"column_longblob\" longblob DEFAULT NULL,\n" +
+                "  \"column_tinytext\" tinytext DEFAULT NULL,\n" +
+                "  \"column_text\" text DEFAULT NULL,\n" +
+                "  \"column_mediumtext\" mediumtext DEFAULT NULL,\n" +
+                "  \"column_longtext\" longtext DEFAULT NULL,\n" +
+                "  \"column_enum\" enum('value1','value2') DEFAULT NULL,\n" +
+                "  \"column_set\" set('value1','value2') DEFAULT NULL,\n" +
+                "  \"column_tinyint\" tinyint(4) DEFAULT NULL,\n" +
+                "  \"column_smallint\" smallint(6) DEFAULT NULL,\n" +
+                "  \"column_mediumint\" mediumint(9) DEFAULT NULL,\n" +
+                "  \"column_int\" int(11) DEFAULT NULL,\n" +
+                "  \"column_float\" float DEFAULT NULL,\n" +
+                "  \"column_double\" double DEFAULT NULL,\n" +
+                "  \"column_date\" mariadb_schema.date DEFAULT NULL,\n" +
+                "  \"column_datetime\" datetime DEFAULT NULL,\n" +
+                "  \"column_timestamp\" timestamp NOT NULL DEFAULT current_timestamp(),\n" +
+                "  \"column_time\" time DEFAULT NULL,\n" +
+                "  \"column_bit\" bit(1) DEFAULT NULL,\n" +
+                "  \"column_json\" longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(\"column_json\")),\n" +
+                "  \"column_decimal\" decimal(10,2) DEFAULT NULL,\n" +
+                "  \"column_numeric\" decimal(10,2) DEFAULT NULL,\n" +
+                "  \"column_year\" year(4) DEFAULT NULL,\n" +
+                "  \"column_boolean\" tinyint(1) DEFAULT NULL,\n" +
+                "  PRIMARY KEY (\"column_bigint\")\n" +
+                ")", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "test_column"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("column_date").typeName()).isEqualTo("DATE");
+    }
+
+    @Test
+    public void shouldParseMariaDbSchemaQualifiedFunctionInOracleMode() {
+        final SimpleDdlParserListener listener = new SimpleDdlParserListener();
+        final MariaDbAntlrDdlParser parser = getParser(listener);
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE \"test_substr\" (\n" +
+                "  \"id\" int(11) NOT NULL,\n" +
+                "  \"cheque_no\" varchar(100) DEFAULT NULL,\n" +
+                "  \"last_6\" char(6) GENERATED ALWAYS AS (mariadb_schema.substr(trim(\"cheque_no\"),-6)) STORED,\n" +
+                "  PRIMARY KEY (\"id\")\n" +
+                ")", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "test_substr"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("last_6")).isNotNull();
+    }
+
+    @Test
     public void shouldParseRpsCustBaseCreateTable() {
         final SimpleDdlParserListener listener = new SimpleDdlParserListener();
         final MariaDbAntlrDdlParser parser = getParser(listener);

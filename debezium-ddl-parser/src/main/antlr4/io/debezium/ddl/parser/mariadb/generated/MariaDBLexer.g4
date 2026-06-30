@@ -45,6 +45,8 @@ LINE_COMMENT:
     (('--' [ \t]* | '#') ~[\r\n]* ('\r'? '\n' | EOF) | '--' ('\r'? '\n' | EOF)) -> channel(HIDDEN)
 ;
 
+MARIADB_SCHEMA_DOT : 'MARIADB_SCHEMA.';
+
 // Keywords
 // Common Keywords
 
