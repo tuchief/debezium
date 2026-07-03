@@ -45,8 +45,6 @@ LINE_COMMENT:
     (('--' [ \t]* | '#') ~[\r\n]* ('\r'? '\n' | EOF) | '--' ('\r'? '\n' | EOF)) -> channel(HIDDEN)
 ;
 
-MARIADB_SCHEMA_DOT : 'MARIADB_SCHEMA.';
-
 // Keywords
 // Common Keywords
 
@@ -271,7 +269,7 @@ TIMESTAMP  : 'TIMESTAMP';
 DATETIME   : 'DATETIME';
 YEAR       : 'YEAR';
 CHAR       : 'CHAR';
-VARCHAR    : 'VARCHAR';
+VARCHAR    : 'VARCHAR' '2'?;
 NVARCHAR   : 'NVARCHAR';
 NATIONAL   : 'NATIONAL';
 BINARY     : 'BINARY';
@@ -1372,6 +1370,8 @@ fragment HEX_DIGIT         : [0-9A-F];
 fragment DEC_DIGIT         : [0-9];
 fragment BIT_STRING_L      : 'B' '\'' [01]+ '\'';
 fragment IP_ADDRESS        : [0-9]+ '.' [0-9.]+ | [0-9A-F:]+ ':' [0-9A-F:]+;
+
+MARIADB_SCHEMA_DOT : 'MARIADB_SCHEMA.';
 
 // Last tokens must generate Errors
 

@@ -2288,6 +2288,13 @@ dataType
         | UNSIGNED
         | ZEROFILL
     )*                                                                                                      # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = NUMBER dimension = lengthTwoOptionalDimension? {
+        ((org.antlr.v4.runtime.WritableToken) $typeName).setType($dimension.ctx == null ? DOUBLE : DECIMAL);
+    } (
+        SIGNED
+        | UNSIGNED
+        | ZEROFILL
+    )*                                                                                                      # dimensionDataType
     | MARIADB_SCHEMA_DOT? typeName = (DATE | TINYBLOB | MEDIUMBLOB | LONGBLOB | BOOL | BOOLEAN | SERIAL)                        # simpleDataType
     | MARIADB_SCHEMA_DOT? typeName = (BIT | TIME | TIMESTAMP | DATETIME | BINARY | VARBINARY | BLOB | YEAR) lengthOneDimension? # dimensionDataType
     | MARIADB_SCHEMA_DOT? typeName = (ENUM | SET) collectionOptions BINARY? (charSet charsetName)?                              # collectionDataType
@@ -2441,6 +2448,7 @@ specificFunction
         | CURTIME // MariaDB-specific only
         | CURRENT_USER
         | LOCALTIME
+        | SYSDATE
         | UTC_TIMESTAMP
         | SCHEMA
     ) ('(' ')')?                                                             # simpleFunctionCall
