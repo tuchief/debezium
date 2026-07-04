@@ -748,6 +748,7 @@ alterSpecification
 alterPartitionSpecification
     : ADD PARTITION ifNotExists? // here ifNotExists is MariaDB-specific only
     '(' partitionDefinition (',' partitionDefinition)* ')'                                          # alterByAddPartition
+    | ADD PARTITION PARTITIONS decimalLiteral                                                        # alterByAddPartition
     | DROP PARTITION ifExists? uidList                                                              # alterByDropPartition // here ifExists is MariaDB-specific only
     | DISCARD PARTITION (uidList | ALL) TABLESPACE                                                  # alterByDiscardPartition
     | IMPORT PARTITION (uidList | ALL) TABLESPACE                                                   # alterByImportPartition
