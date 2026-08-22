@@ -723,7 +723,7 @@ alterSpecification
     | LOCK '='? lockType = (DEFAULT | NONE | SHARED | EXCLUSIVE)                                                # alterByLock
     | MODIFY COLUMN? ifExists?                                            // here ifExists is MariaDB-specific only
     uid columnDefinition (FIRST | AFTER uid)?                             # alterByModifyColumn
-    | DROP COLUMN? ifExists? uid RESTRICT?                                # alterByDropColumn          // here ifExists is MariaDB-specific only
+    | DROP COLUMN? ifExists? uid (RESTRICT | CASCADE)?                    # alterByDropColumn          // here ifExists is MariaDB-specific only
     | DROP (CONSTRAINT | CHECK) ifExists? uid                             # alterByDropConstraintCheck // here ifExists is MariaDB-specific only
     | DROP PRIMARY KEY                                                    # alterByDropPrimaryKey
     | DROP indexFormat = (INDEX | KEY) ifExists? uid                      # alterByDropIndex // here ifExists is MariaDB-specific only

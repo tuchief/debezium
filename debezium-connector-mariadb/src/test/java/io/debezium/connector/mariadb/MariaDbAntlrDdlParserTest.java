@@ -134,6 +134,22 @@ public class MariaDbAntlrDdlParserTest extends BinlogAntlrDdlParserTest<MariaDbV
         assertThat(table.primaryKeyColumnNames()).containsExactly("cust_id");
     }
 
+    @Test
+    public void shouldRemoveColumnWhenDropColumnUsesCascade() {
+        final SimpleDdlParserListener listener = new SimpleDdlParserListener();
+        final MariaDbAntlrDdlParser parser = getParser(listener);
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE t1_like (id INT NOT NULL, c1 INT); " +
+                "ALTER TABLE t1_like DROP COLUMN c1 CASCADE;", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "t1_like"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("id")).isNotNull();
+        assertThat(table.columnWithName("c1")).isNull();
+    }
+
     @Override
     protected MariaDbAntlrDdlParser getParser(SimpleDdlParserListener listener) {
         return new MariaDbDdlParserWithSimpleTestListener(listener);
