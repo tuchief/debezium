@@ -45,6 +45,7 @@ public class MariaDbAntlrDdlParserListener extends MariaDBParserBaseListener imp
         listeners.add(new DropDatabaseParserListener(parser));
         listeners.add(new CreateTableParserListener(parser, listeners));
         listeners.add(new AlterTableParserListener(parser, listeners));
+        listeners.add(new CommentParserListener(parser));
         listeners.add(new DropTableParserListener(parser));
         listeners.add(new RenameTableParserListener(parser));
         listeners.add(new TruncateTableParserListener(parser));

@@ -142,7 +142,10 @@ public abstract class AbstractSchemaHistory implements SchemaHistory {
                     }
                     catch (final ParsingException | MultipleParsingExceptions e) {
                         if (skipUnparseableDDL) {
-                            logger.warn("Ignoring unparseable statements '{}' stored in database schema history", ddl, e);
+                            final String databaseName = recovered.databaseName() != null ? recovered.databaseName() : recovered.schemaName();
+                            logger.warn("Skipping unparseable DDL stored in schema history because '{}' is enabled. " +
+                                    "Database: '{}', DDL: '{}'. Schema recovery may be incomplete.",
+                                    SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), databaseName, ddl, e);
                         }
                         else {
                             throw e;

@@ -29,6 +29,7 @@ import io.debezium.relational.ValueConverterProvider;
 import io.debezium.relational.ddl.DdlChanges;
 import io.debezium.relational.ddl.DdlParser;
 import io.debezium.relational.ddl.DdlParserListener;
+import io.debezium.relational.history.SchemaHistory;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
@@ -312,7 +313,9 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
         }
         catch (ParsingException | MultipleParsingExceptions e) {
             if (skipUnparseableDdlStatements()) {
-                LOGGER.warn("Ignoring unparseable DDL statement '{}'", ddlStatements, e);
+                LOGGER.warn("Skipping unparseable DDL because '{}' is enabled. Database: '{}', DDL: '{}'. " +
+                        "Schema state may contain changes applied before the parsing failure.",
+                        SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), databaseName, ddlStatements, e);
             }
             else {
                 throw e;

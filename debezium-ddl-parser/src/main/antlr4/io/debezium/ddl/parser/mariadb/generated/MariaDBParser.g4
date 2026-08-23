@@ -89,6 +89,7 @@ ddlStatement
     | alterTablespace
     | alterView
     | alterSequence
+    | commentOnColumn
     | dropDatabase
     | dropEvent
     | dropIndex
@@ -697,6 +698,14 @@ alterView
 
 alterSequence // sequence is MariaDB-specific only
     : ALTER SEQUENCE ifExists? fullId sequenceSpec+
+    ;
+
+commentOnColumn
+    : COMMENT ON COLUMN commentColumnName IS STRING_LITERAL
+    ;
+
+commentColumnName
+    : uid dottedId dottedId?
     ;
 
 // details

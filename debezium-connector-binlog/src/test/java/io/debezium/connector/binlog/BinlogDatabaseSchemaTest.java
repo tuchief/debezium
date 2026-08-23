@@ -23,6 +23,7 @@ import io.debezium.connector.binlog.jdbc.BinlogSystemVariables;
 import io.debezium.connector.binlog.util.TestHelper;
 import io.debezium.connector.binlog.util.UniqueDatabase;
 import io.debezium.doc.FixFor;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.relational.Table;
@@ -104,6 +105,8 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
                 .build();
         schema = getSchema(config);
         schema.initializeStorage();
+        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final LogInterceptor historyLogInterceptor = new LogInterceptor("io.debezium.storage.file.history.FileSchemaHistory");
 
         final P partition = initializePartition(connectorConfig, config);
         final O offset = initializeOffset(connectorConfig);
@@ -114,6 +117,12 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
         schema.parseStreamingDdl(partition, "xxxCREATE TABLE mytable\n" + IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
+        assertThat(logInterceptor.containsWarnMessage(
+                "Skipping unparseable DDL because 'schema.history.internal.skip.unparseable.ddl' is enabled")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage("Database: 'db1'")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage("xxxCREATE TABLE mytable")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage(
+                "Schema state may contain changes applied before the parsing failure")).isTrue();
         schema.parseStreamingDdl(partition, IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
         schema.close();
@@ -124,6 +133,11 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         assertTableIncluded("connector_test.customers");
         assertTableIncluded("connector_test.orders");
         assertHistoryRecorded(config, partition, offset);
+        assertThat(historyLogInterceptor.containsWarnMessage(
+                "Skipping unparseable DDL stored in schema history because 'schema.history.internal.skip.unparseable.ddl' is enabled")).isTrue();
+        assertThat(historyLogInterceptor.containsWarnMessage("Database: 'db1'")).isTrue();
+        assertThat(historyLogInterceptor.containsWarnMessage("xxxCREATE TABLE mytable")).isTrue();
+        assertThat(historyLogInterceptor.containsWarnMessage("Schema recovery may be incomplete")).isTrue();
     }
 
     @Test(expected = ParsingException.class)

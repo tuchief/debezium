@@ -6,6 +6,7 @@
 package io.debezium.connector.mariadb;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
 import io.debezium.relational.ddl.DdlChanges;
 import io.debezium.relational.ddl.SimpleDdlParserListener;
+import io.debezium.text.ParsingException;
 
 /**
  * @author Chris Cranford
@@ -148,6 +150,59 @@ public class MariaDbAntlrDdlParserTest extends BinlogAntlrDdlParserTest<MariaDbV
         assertThat(table).isNotNull();
         assertThat(table.columnWithName("id")).isNotNull();
         assertThat(table.columnWithName("c1")).isNull();
+    }
+
+    @Test
+    public void shouldParseAlterTableFollowedByCommentOnColumn() {
+        final SimpleDdlParserListener listener = new SimpleDdlParserListener();
+        final MariaDbAntlrDdlParser parser = getParser(listener, false, true);
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE retail_core.kdpa_acct_bill (id INT); " +
+                "ALTER TABLE retail_core.kdpa_acct_bill ADD last_prt_date VARCHAR(8) NULL\n" +
+                "COMMENT ON COLUMN retail_core.kdpa_acct_bill.last_prt_date IS 'Last Print Date';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, "retail_core", "kdpa_acct_bill"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("last_prt_date")).isNotNull();
+        assertThat(table.columnWithName("last_prt_date").comment()).isEqualTo("Last Print Date");
+    }
+
+    @Test
+    public void shouldParseCommentOnColumnWhenCommentsAreDisabled() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener(), false, false);
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE retail_core.kdpa_acct_bill (id INT, last_prt_date VARCHAR(8)); " +
+                "COMMENT ON COLUMN retail_core.kdpa_acct_bill.last_prt_date IS 'Last Print Date';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, "retail_core", "kdpa_acct_bill"));
+        assertThat(table.columnWithName("last_prt_date").comment()).isNull();
+    }
+
+    @Test
+    public void shouldParseTwoPartCommentOnColumnAndResetListenerState() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener(), false, true);
+        final Tables tables = new Tables();
+        parser.setCurrentSchema("retail_core");
+        parser.parse("CREATE TABLE retail_core.kdpa_acct_bill (id INT, last_prt_date VARCHAR(8));", tables);
+
+        parser.parse("COMMENT ON COLUMN missing_table.missing_column IS 'Ignored'; " +
+                "COMMENT ON COLUMN kdpa_acct_bill.last_prt_date IS 'Last Print Date';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, "retail_core", "kdpa_acct_bill"));
+        assertThat(table.columnWithName("last_prt_date").comment()).isEqualTo("Last Print Date");
+    }
+
+    @Test
+    public void shouldRejectCommentOnColumnWithoutTableName() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener(), false, true);
+
+        assertThatThrownBy(() -> parser.parse("COMMENT ON COLUMN last_prt_date IS 'Last Print Date';", new Tables()))
+                .isInstanceOf(ParsingException.class);
     }
 
     @Override
