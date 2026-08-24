@@ -93,6 +93,7 @@ import io.debezium.snapshot.SnapshotterService;
 import io.debezium.snapshot.mode.NeverSnapshotter;
 import io.debezium.time.Conversions;
 import io.debezium.util.Clock;
+import io.debezium.util.FailureLogLimiter;
 import io.debezium.util.Metronome;
 import io.debezium.util.Strings;
 import io.debezium.util.Threads;
@@ -127,6 +128,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
     private final Predicate<String> gtidDmlSourceFilter;
     private final boolean isGtidModeEnabled;
     private final AtomicLong totalRecordCounter = new AtomicLong();
+    private final DmlFailureLogger dmlFailureLogger = new DmlFailureLogger(LOGGER, new FailureLogLimiter());
     private final Map<String, Thread> binaryLogClientThreads = new ConcurrentHashMap<>(4);
     private final EnumMap<EventType, BlockingConsumer<Event>> eventHandlers = new EnumMap<>(EventType.class);
     private final float heartbeatIntervalFactor = 0.8f;
@@ -901,7 +903,8 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 WriteRowsEventData::getRows,
                 (tableId, row) -> eventDispatcher.dispatchDataChangeEvent(partition, tableId,
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.CREATE, null, row, connectorConfig)),
-                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), null, row));
+                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), null, row,
+                        Envelope.Operation.CREATE, offsetContext, event));
     }
 
     /**
@@ -918,7 +921,8 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 (tableId, row) -> eventDispatcher.dispatchDataChangeEvent(partition, tableId,
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.UPDATE, row.getKey(), row.getValue(),
                                 connectorConfig)),
-                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row.getKey(), row.getValue()));
+                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row.getKey(), row.getValue(),
+                        Envelope.Operation.UPDATE, offsetContext, event));
     }
 
     /**
@@ -934,7 +938,8 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 DeleteRowsEventData::getRows,
                 (tableId, row) -> eventDispatcher.dispatchDataChangeEvent(partition, tableId,
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.DELETE, row, null, connectorConfig)),
-                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row, null));
+                (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row, null,
+                        Envelope.Operation.DELETE, offsetContext, event));
     }
 
     /**
@@ -1055,21 +1060,14 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             EventHeaderV4 eventHeader = event.getHeader();
 
             if (inconsistentSchemaHandlingMode == EventProcessingFailureHandlingMode.FAIL) {
-                LOGGER.error(
-                        "Encountered change event '{}' at offset {} for table {} whose schema isn't known to this connector. One possible cause is an incomplete database schema history topic. Take a new snapshot in this case.{}"
-                                + "Use the mysqlbinlog tool to view the problematic event: mysqlbinlog --start-position={} --stop-position={} --verbose {}",
-                        event, offsetContext.getOffset(), tableId, System.lineSeparator(), eventHeader.getPosition(),
-                        eventHeader.getNextPosition(), offsetContext.getSource().binlogFilename());
+                dmlFailureLogger.errorUnknownTable(tableId, operation, offsetContext.getOffset(), offsetContext.getSource().binlogFilename(),
+                        eventHeader.getPosition(), eventHeader.getNextPosition());
                 throw new DebeziumException("Encountered change event for table " + tableId
                         + " whose schema isn't known to this connector");
             }
             else if (inconsistentSchemaHandlingMode == EventProcessingFailureHandlingMode.WARN) {
-                LOGGER.warn(
-                        "Encountered change event '{}' at offset {} for table {} whose schema isn't known to this connector. One possible cause is an incomplete database schema history topic. Take a new snapshot in this case.{}"
-                                + "The event will be ignored.{}"
-                                + "Use the mysqlbinlog tool to view the problematic event: mysqlbinlog --start-position={} --stop-position={} --verbose {}",
-                        event, offsetContext.getOffset(), tableId, System.lineSeparator(), System.lineSeparator(),
-                        eventHeader.getPosition(), eventHeader.getNextPosition(), offsetContext.getSource().binlogFilename());
+                dmlFailureLogger.warnUnknownTable(tableId, operation, offsetContext.getOffset(), offsetContext.getSource().binlogFilename(),
+                        eventHeader.getPosition(), eventHeader.getNextPosition());
             }
             else {
                 LOGGER.debug(
@@ -1115,19 +1113,22 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         informAboutUnknownTableIfRequired(partition, offsetContext, event, tableId, null);
     }
 
-    private void validateChangeEventWithTable(Table table, Object[] before, Object[] after) {
+    private void validateChangeEventWithTable(Table table, Object[] before, Object[] after, Envelope.Operation operation,
+                                              O offsetContext, Event event) {
         if (table != null) {
             int columnSize = table.columns().size();
-            String message = "Error processing {} of row in {} because it's different column size with internal schema size {}, but {} size {}, " +
-                    "restart connector with schema recovery mode.";
+            final EventHeader header = event.getHeader();
+            final long position = header instanceof EventHeaderV4 ? ((EventHeaderV4) header).getPosition() : -1;
             if (before != null && columnSize != before.length) {
-                LOGGER.error(message, "before", table.id().table(), columnSize, "before", before.length);
+                dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "before", columnSize, before.length,
+                        offsetContext.getSource().binlogFilename(), position);
                 throw new DebeziumException(
                         "Error processing row in " + table.id().table() + ", internal schema size " + columnSize + ", but row size " + before.length + " , " +
                                 "restart connector with schema recovery mode.");
             }
             if (after != null && columnSize != after.length) {
-                LOGGER.error(message, "after", table.id().table(), columnSize, "after", after.length);
+                dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "after", columnSize, after.length,
+                        offsetContext.getSource().binlogFilename(), position);
                 throw new DebeziumException(
                         "Error processing row in " + table.id().table() + ", internal schema size " + columnSize + ", but row size " + after.length + " , " +
                                 "restart connector with schema recovery mode.");
