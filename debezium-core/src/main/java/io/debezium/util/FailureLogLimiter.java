@@ -39,7 +39,7 @@ public final class FailureLogLimiter {
         this(DEFAULT_MAX_SIGNATURES, DEFAULT_GLOBAL_LIMIT, DEFAULT_WINDOW_NANOS, DEFAULT_EXPIRY_NANOS, System::nanoTime);
     }
 
-    FailureLogLimiter(int maxSignatures, int globalLimit, long windowNanos, long expiryNanos, LongSupplier nanoTime) {
+    public FailureLogLimiter(int maxSignatures, int globalLimit, long windowNanos, long expiryNanos, LongSupplier nanoTime) {
         this.maxSignatures = Math.max(0, maxSignatures);
         this.globalLimit = Math.max(1, globalLimit);
         this.windowNanos = Math.max(1, windowNanos);

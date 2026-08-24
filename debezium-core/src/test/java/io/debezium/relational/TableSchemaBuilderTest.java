@@ -6,6 +6,7 @@
 package io.debezium.relational;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
@@ -13,6 +14,8 @@ import java.nio.ByteBuffer;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
@@ -41,6 +44,9 @@ import io.debezium.schema.SchemaTopicNamingStrategy;
 import io.debezium.spi.common.ReplacementFunction;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.time.Date;
+import io.debezium.util.FailureLogLimiter;
+
+import ch.qos.logback.classic.Level;
 
 public class TableSchemaBuilderTest {
 
@@ -739,27 +745,25 @@ public class TableSchemaBuilderTest {
                 SchemaBuilder.struct().build(), defaultFieldNamer, false, EventConvertingFailureHandlingMode.FAIL)
                 .create(topicNamingStrategy, table, null, null, null);
 
-        try {
-            schema.valueFromColumnData(data);
-            fail();
-        }
-        catch (Exception e) {
-            assertThat(e.getMessage().contains(errorMessage)).isTrue();
-        }
+        final Throwable conversionFailure = catchThrowable(() -> schema.valueFromColumnData(data));
+        assertThat(conversionFailure)
+                .hasMessageContaining(errorMessage)
+                .hasCauseInstanceOf(Exception.class);
+        logInterceptor.clear();
 
         // warn log without exception if eventConvertingFailureHandlingMode is WARN
+        logInterceptor.setLoggerLevel(TableSchemaBuilder.class, Level.DEBUG);
         schema = new TableSchemaBuilder(new JdbcValueConverters(), null, adjuster, customConverterRegistry,
                 SchemaBuilder.struct().build(), defaultFieldNamer, false, EventConvertingFailureHandlingMode.WARN)
                 .create(topicNamingStrategy, table, null, null, null);
 
-        try {
-            schema.valueFromColumnData(data);
-        }
-        catch (Exception e) {
-            fail();
-        }
+        schema.valueFromColumnData(data);
+        schema.valueFromColumnData(data);
+        schema.valueFromColumnData(data);
 
         assertThat(logInterceptor.containsWarnMessage(errorMessage)).isTrue();
+        assertThat(logInterceptor.getLoggingEvents(errorMessage)).hasSize(1);
+        assertThat(logInterceptor.containsMessage("converting_failed_value")).isFalse();
         logInterceptor.clear();
 
         // only debug log without exception if eventConvertingFailureHandlingMode is SKIP
@@ -777,5 +781,20 @@ public class TableSchemaBuilderTest {
         assertThat(logInterceptor.containsErrorMessage(errorMessage)).isFalse();
         assertThat(logInterceptor.containsWarnMessage(errorMessage)).isFalse();
         logInterceptor.clear();
+
+        final AtomicInteger clockCalls = new AtomicInteger();
+        final FailureLogLimiter limiter = new FailureLogLimiter(1, 1, TimeUnit.MINUTES.toNanos(1),
+                TimeUnit.MINUTES.toNanos(10), () -> {
+                    clockCalls.incrementAndGet();
+                    return 0;
+                });
+        schema = new TableSchemaBuilder(new JdbcValueConverters(), null, adjuster, customConverterRegistry,
+                SchemaBuilder.struct().build(), SchemaFactory.get().transactionBlockSchema(), defaultFieldNamer, false,
+                EventConvertingFailureHandlingMode.WARN, limiter)
+                .create(topicNamingStrategy, table, null, null, null);
+
+        schema.valueFromColumnData(this.data);
+
+        assertThat(clockCalls).hasValue(0);
     }
 }
