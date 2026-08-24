@@ -2,7 +2,8 @@
 
 ## Environment
 
-- Feature commit under test: `63f39cce1ae7830f789230eead6301721adb1be9`
+- Successful-path benchmark commit: `63f39cce1ae7830f789230eead6301721adb1be9`
+- Final error-path follow-up: `6e2b848129` (legacy `mode=null` rate limiting; no successful-row code change)
 - Baseline code: `cd1eeefe3c`
 - Baseline benchmark-only commit: `9e826107f6`
 - JDK: Azul Zulu OpenJDK 21.0.12+8-LTS
