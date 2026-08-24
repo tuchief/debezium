@@ -83,6 +83,9 @@ public class LoggingsTest {
         assertThatCode(() -> {
             Loggings.logRateLimitedWarningAndTraceRecord(logger, limiter, "conversion", "secret-row-value",
                     "Failed conversion for '{}.{}'", "db.t", "c1");
+            Loggings.logRateLimitedErrorAndTraceRecord(logger,
+                    new FailureLogLimiter(1, 1, WINDOW, EXPIRY, () -> 0), "legacy-conversion", "secret-row-value",
+                    "Failed legacy conversion for '{}.{}'", "db.t", "c1");
             Loggings.logErrorNoThrow(logger, "Fatal conversion for '{}.{}'", "db.t", "c1");
         }).doesNotThrowAnyException();
     }

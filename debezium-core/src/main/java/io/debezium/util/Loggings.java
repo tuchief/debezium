@@ -65,6 +65,36 @@ public class Loggings {
     }
 
     /**
+     * Logs an error only when permitted by the supplied limiter and contains diagnostic runtime failures.
+     */
+    public static void logRateLimitedErrorAndTraceRecord(Logger logger, FailureLogLimiter limiter, String signature,
+                                                         Object record, String message, Object... arguments) {
+        try {
+            if (!logger.isErrorEnabled()) {
+                return;
+            }
+            final FailureLogLimiter.Decision decision = limiter.acquire(signature);
+            if (!decision.shouldLog()) {
+                return;
+            }
+
+            String effectiveMessage = message;
+            Object[] effectiveArguments = arguments;
+            if (decision.suppressedCount() > 0 || decision.overflow()) {
+                effectiveMessage += " [suppressedCount={}, overflow={}]";
+                effectiveArguments = appendBeforeThrowable(arguments, decision.suppressedCount(), decision.overflow());
+            }
+            logger.error(effectiveMessage, effectiveArguments);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Source of error is record '{}'", record);
+            }
+        }
+        catch (RuntimeException ignored) {
+            // Diagnostics must never affect event processing.
+        }
+    }
+
+    /**
      * Logs an error without allowing logging runtime failures to affect the caller's control flow.
      */
     public static void logErrorNoThrow(Logger logger, String message, Object... arguments) {

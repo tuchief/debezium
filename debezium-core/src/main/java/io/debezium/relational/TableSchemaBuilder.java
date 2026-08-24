@@ -349,8 +349,9 @@ public class TableSchemaBuilder {
                             Column col = columnsThatShouldBeAdded.get(i);
                             String message = "Failed to properly convert data value for '{}.{}' of type {}";
                             if (eventConvertingFailureHandlingMode == null) {
-                                Loggings.logErrorAndTraceRecord(LOGGER, row,
-                                        message, tableId, col.name(), col.typeName(), e);
+                                final String signature = "VALUE_CONVERSION|" + tableId + "|" + col.name() + "|" + e.getClass().getName();
+                                Loggings.logRateLimitedErrorAndTraceRecord(LOGGER, failureLogLimiter, signature,
+                                        row, message, tableId, col.name(), col.typeName(), e);
                             }
                             else {
                                 // NOTE: what if failed column is not accept null?

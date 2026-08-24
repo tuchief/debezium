@@ -732,12 +732,15 @@ public class TableSchemaBuilderTest {
                 .create(topicNamingStrategy, table, null, null, null);
         try {
             schema.valueFromColumnData(data);
+            schema.valueFromColumnData(data);
+            schema.valueFromColumnData(data);
         }
         catch (Exception e) {
             fail();
         }
 
         assertThat(logInterceptor.containsErrorMessage(errorMessage)).isTrue();
+        assertThat(logInterceptor.getLoggingEvents(errorMessage)).hasSize(1);
         logInterceptor.clear();
 
         // error log and exception if eventConvertingFailureHandlingMode is FAIL
