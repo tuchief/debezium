@@ -128,7 +128,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
     private final Predicate<String> gtidDmlSourceFilter;
     private final boolean isGtidModeEnabled;
     private final AtomicLong totalRecordCounter = new AtomicLong();
-    private final DmlFailureLogger dmlFailureLogger = new DmlFailureLogger(LOGGER, new FailureLogLimiter());
+    private final DmlFailureLogger dmlFailureLogger = new DmlFailureLogger(new FailureLogLimiter());
     private final Map<String, Thread> binaryLogClientThreads = new ConcurrentHashMap<>(4);
     private final EnumMap<EventType, BlockingConsumer<Event>> eventHandlers = new EnumMap<>(EventType.class);
     private final float heartbeatIntervalFactor = 0.8f;
@@ -784,7 +784,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             return;
         }
         if (schema.ddlFilter().test(sql)) {
-            IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
+            IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
                     "reason=DDL_FILTER");
             return;
         }
@@ -824,7 +824,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 });
             }
             if (skippedSchemaChangeEvents > 0) {
-                IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
                         "reason=NON_CAPTURED_DATABASE, eventCount=" + skippedSchemaChangeEvents);
             }
         }

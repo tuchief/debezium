@@ -103,7 +103,7 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         final Configuration config = DATABASE.defaultConfig().build();
         schema = getSchema(config);
         schema.initializeStorage();
-        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final LogInterceptor logInterceptor = new LogInterceptor(IncrementalDdlLogger.LOGGER_NAME);
         final P partition = initializePartition(connectorConfig, config);
         final O offset = initializeOffset(connectorConfig);
 
@@ -124,7 +124,7 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
                 .build();
         schema = getSchema(config);
         schema.initializeStorage();
-        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final LogInterceptor logInterceptor = new LogInterceptor(IncrementalDdlLogger.LOGGER_NAME);
         final P partition = initializePartition(connectorConfig, config);
         final O offset = initializeOffset(connectorConfig);
 
@@ -147,7 +147,7 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
                 .build();
         schema = getSchema(config);
         schema.initializeStorage();
-        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final LogInterceptor logInterceptor = new LogInterceptor(IncrementalDdlLogger.LOGGER_NAME);
         final LogInterceptor historyLogInterceptor = new LogInterceptor("io.debezium.storage.file.history.FileSchemaHistory");
 
         final P partition = initializePartition(connectorConfig, config);
@@ -192,7 +192,7 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
                 .build();
         schema = getSchema(config);
         schema.initializeStorage();
-        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final LogInterceptor logInterceptor = new LogInterceptor(IncrementalDdlLogger.LOGGER_NAME);
         final P partition = initializePartition(connectorConfig, config);
         final O offset = initializeOffset(connectorConfig);
 

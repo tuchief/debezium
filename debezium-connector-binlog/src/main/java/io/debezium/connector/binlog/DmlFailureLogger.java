@@ -8,6 +8,7 @@ package io.debezium.connector.binlog;
 import java.util.Map;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.debezium.data.Envelope;
 import io.debezium.relational.TableId;
@@ -19,8 +20,16 @@ import io.debezium.util.Loggings;
  */
 final class DmlFailureLogger {
 
+    static final String LOGGER_NAME = "io.debezium.connector.binlog.dml.failure";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(LOGGER_NAME);
+
     private final Logger logger;
     private final FailureLogLimiter limiter;
+
+    DmlFailureLogger(FailureLogLimiter limiter) {
+        this(LOGGER, limiter);
+    }
 
     DmlFailureLogger(Logger logger, FailureLogLimiter limiter) {
         this.logger = logger;

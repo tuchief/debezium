@@ -22,11 +22,37 @@ import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.TableId;
 import io.debezium.util.FailureLogLimiter;
 
+import ch.qos.logback.classic.Level;
+
 public class BinlogDmlFailureLoggingTest {
 
     private static final long WINDOW = SECONDS.toNanos(60);
     private static final long EXPIRY = MINUTES.toNanos(10);
     private static final TableId TABLE_ID = new TableId("catalog", null, "customers");
+
+    @Test
+    public void shouldUseDedicatedLoggerWhenDebeziumParentOnlyAllowsErrors() {
+        final ch.qos.logback.classic.Logger parentLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("io.debezium");
+        final ch.qos.logback.classic.Logger dmlLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(DmlFailureLogger.LOGGER_NAME);
+        final Level originalParentLevel = parentLogger.getLevel();
+        final Level originalDmlLevel = dmlLogger.getLevel();
+        final LogInterceptor interceptor = new LogInterceptor(DmlFailureLogger.LOGGER_NAME);
+
+        try {
+            parentLogger.setLevel(Level.ERROR);
+            dmlLogger.setLevel(Level.WARN);
+            final DmlFailureLogger failureLogger = new DmlFailureLogger(new FailureLogLimiter());
+
+            failureLogger.warnUnknownTable(TABLE_ID, Envelope.Operation.CREATE, Collections.singletonMap("pos", 100),
+                    "mariadb-bin.000001", 100, 120);
+
+            assertThat(interceptor.getLogEntriesThatContainsMessage("[DML_PROCESSING_FAILED]")).hasSize(1);
+        }
+        finally {
+            parentLogger.setLevel(originalParentLevel);
+            dmlLogger.setLevel(originalDmlLevel);
+        }
+    }
 
     @Test
     public void shouldRateLimitUnknownTableWarningAndSummarizeSuppressedEvents() {

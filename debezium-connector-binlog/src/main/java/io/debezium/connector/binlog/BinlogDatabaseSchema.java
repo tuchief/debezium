@@ -255,7 +255,7 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
      * @return list of parsed schema changes
      */
     public List<SchemaChangeEvent> parseStreamingDdl(P partition, String ddlStatements, String databaseName, O offset, Instant sourceTime) {
-        IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_RECEIVED", databaseName, ddlStatements, "");
+        IncrementalDdlLogger.info("INCREMENTAL_DDL_RECEIVED", databaseName, ddlStatements, "");
         return parseDdl(partition, ddlStatements, databaseName, offset, sourceTime, false);
     }
 
@@ -304,7 +304,7 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
         final List<SchemaChangeEvent> schemaChangeEvents = new ArrayList<>(3);
         if (ignoredQueryStatements.contains(ddlStatements)) {
             if (!snapshot) {
-                IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
                         "reason=IGNORED_STATEMENT");
             }
             return schemaChangeEvents;
@@ -319,16 +319,12 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
         catch (ParsingException | MultipleParsingExceptions e) {
             parsingFailed = true;
             if (skipUnparseableDdlStatements()) {
-                IncrementalDdlLogger.warn(LOGGER, "INCREMENTAL_DDL_PARSE_FAILED", databaseName, ddlStatements,
-                        "action=CONTINUE, config=" + SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name() +
-                                "=true, schemaStateMayBePartial=true, exception=" + e.getClass().getSimpleName() +
-                                ", message=" + IncrementalDdlLogger.ddlPreview(e.getMessage()));
+                IncrementalDdlLogger.parseFailure(databaseName, ddlStatements, true,
+                        SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), e);
             }
             else {
-                IncrementalDdlLogger.error(LOGGER, "INCREMENTAL_DDL_PARSE_FAILED", databaseName, ddlStatements,
-                        "action=STOP, config=" + SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name() +
-                                "=false, exception=" + e.getClass().getSimpleName() +
-                                ", message=" + IncrementalDdlLogger.ddlPreview(e.getMessage()));
+                IncrementalDdlLogger.parseFailure(databaseName, ddlStatements, false,
+                        SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), e);
                 throw e;
             }
         }
@@ -402,13 +398,13 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
         }
         else {
             if (!snapshot && !parsingFailed) {
-                IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
                         "reason=CAPTURE_FILTER");
             }
             return schemaChangeEvents;
         }
         if (!snapshot && !parsingFailed) {
-            IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_PARSED", databaseName, ddlStatements,
+            IncrementalDdlLogger.info("INCREMENTAL_DDL_PARSED", databaseName, ddlStatements,
                     "eventCount=" + schemaChangeEvents.size() + ", schemaChangeDetected=" + !ddlChanges.isEmpty());
         }
         return schemaChangeEvents;
