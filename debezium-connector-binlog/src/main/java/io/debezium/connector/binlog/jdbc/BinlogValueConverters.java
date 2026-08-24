@@ -57,6 +57,7 @@ import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
 import io.debezium.service.spi.ServiceRegistry;
 import io.debezium.time.Year;
+import io.debezium.util.FailureLogLimiter;
 import io.debezium.util.Loggings;
 import io.debezium.util.Strings;
 
@@ -100,6 +101,7 @@ public abstract class BinlogValueConverters extends JdbcValueConverters {
 
     private final EventConvertingFailureHandlingMode eventConvertingFailureHandlingMode;
     private final BinlogCharsetRegistry charsetRegistry;
+    private final FailureLogLimiter failureLogLimiter = new FailureLogLimiter();
 
     /**
      * Create a new instance of the value converters that always uses UTC for the default time zone when
@@ -425,8 +427,15 @@ public abstract class BinlogValueConverters extends JdbcValueConverters {
                                     "Failed to parse and read a JSON value on '{}'", column, e);
                             throw new DebeziumException("Failed to parse and read a JSON value on '" + column + "'", e);
                         }
-                        Loggings.logWarningAndTraceRecord(logger, Arrays.toString((byte[]) data),
-                                "Failed to parse and read a JSON value on '{}'", column, e);
+                        if (eventConvertingFailureHandlingMode == null || eventConvertingFailureHandlingMode == EventConvertingFailureHandlingMode.WARN) {
+                            final String signature = "BINLOG_VALUE_CONVERSION|" + column.name() + "|" + column.typeName() + "|" + e.getClass().getName();
+                            Loggings.logRateLimitedWarningAndTraceRecord(logger, failureLogLimiter, signature, null,
+                                    "Failed to parse and read a JSON value on '{}'", column, e);
+                        }
+                        else {
+                            Loggings.logDebugAndTraceRecord(logger, null,
+                                    "Failed to parse and read a JSON value on '{}'", column, e);
+                        }
                         r.deliver(column.isOptional() ? null : "{}");
                     }
                 }

@@ -141,9 +141,14 @@ public abstract class BinlogValueConvertersTest<C extends SourceConnector> imple
         Column colA = table.columnWithName("A");
         Field fieldA = new Field(colA.name(), -1, converters.schemaBuilder(colA).optional().build());
         assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
+        assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
+        assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
         assertThat(logInterceptor.containsWarnMessage("Failed to parse and read a JSON value on 'A JSON DEFAULT VALUE NULL'"))
                 .describedAs("Expected null value of nullable column when parsing invalid json with WARN mode")
                 .isTrue();
+        assertThat(logInterceptor.getLoggingEvents("Failed to parse and read a JSON value on 'A JSON DEFAULT VALUE NULL'"))
+                .hasSize(1);
+        assertThat(logInterceptor.containsWarnMessage("[2, 1, 0, 91")).isFalse();
 
         // ColB - NOT NUll column
         Column colB = table.columnWithName("B");
@@ -152,6 +157,27 @@ public abstract class BinlogValueConvertersTest<C extends SourceConnector> imple
         assertThat(logInterceptor.containsWarnMessage("Failed to parse and read a JSON value on 'B JSON NOT NULL'"))
                 .describedAs("Expected '{}' value of non-null column when parsing invalid json with WARN mode")
                 .isTrue();
+    }
+
+    @Test
+    public void shouldNotWarnForInvalidJsonInSkipMode() {
+        final BinlogValueConverters converters = getValueConverters(
+                JdbcValueConverters.DecimalMode.DOUBLE,
+                TemporalPrecisionMode.CONNECT,
+                JdbcValueConverters.BigIntUnsignedMode.LONG,
+                BinaryHandlingMode.BYTES,
+                x -> x,
+                EventConvertingFailureHandlingMode.SKIP);
+        final LogInterceptor logInterceptor = new LogInterceptor(converters.getClass());
+        final DdlParser parser = getDdlParser();
+        final Tables tables = new Tables();
+        parser.parse("CREATE TABLE JSON_TABLE (A JSON)", tables);
+        final Column column = tables.forTable(new TableId(null, null, "JSON_TABLE")).columnWithName("A");
+        final Field field = new Field(column.name(), -1, converters.schemaBuilder(column).optional().build());
+
+        assertThat(converters.converter(column, field).convert(INVALID_JSON)).isNull();
+
+        assertThat(logInterceptor.containsWarnMessage("Failed to parse and read a JSON value")).isFalse();
     }
 
     @Test(expected = DebeziumException.class)
