@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.util.Loggings;
 
 public class ErrorHandler {
 
@@ -49,23 +50,24 @@ public class ErrorHandler {
     }
 
     public void setProducerThrowable(Throwable producerThrowable) {
-        LOGGER.error("Producer failure", producerThrowable);
-
         boolean first = this.producerThrowable.compareAndSet(null, producerThrowable);
+        if (!first) {
+            return;
+        }
+
+        Loggings.logErrorNoThrow(LOGGER, "Producer failure", producerThrowable);
         boolean retriable = isRetriable(producerThrowable);
 
         if (!retriable) {
             retriable = isCustomRetriable(producerThrowable);
         }
 
-        if (first) {
-            if (retriable && hasMoreRetries()) {
-                queue.producerException(
-                        new RetriableException("An exception occurred in the change event producer. This connector will be restarted.", producerThrowable));
-            }
-            else {
-                queue.producerException(new ConnectException("An exception occurred in the change event producer. This connector will be stopped.", producerThrowable));
-            }
+        if (retriable && hasMoreRetries()) {
+            queue.producerException(
+                    new RetriableException("An exception occurred in the change event producer. This connector will be restarted.", producerThrowable));
+        }
+        else {
+            queue.producerException(new ConnectException("An exception occurred in the change event producer. This connector will be stopped.", producerThrowable));
         }
     }
 

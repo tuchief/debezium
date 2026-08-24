@@ -22,6 +22,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.EnumeratedValue;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.util.LoggingContext;
 
 public class ErrorHandlerTest {
@@ -164,6 +165,22 @@ public class ErrorHandlerTest {
         final Exception error = new IllegalArgumentException("This is my error to retry");
         initErrorHandler(config, queue, new Exception("Main", error));
         pollAndAssertRetriable(queue);
+    }
+
+    @Test
+    public void shouldLogAndStoreOnlyFirstProducerFailure() {
+        final ChangeEventQueue<DataChangeEvent> queue = queue();
+        final ErrorHandler errorHandler = new ErrorHandler(SourceConnector.class,
+                new TestConnectorConfig(Configuration.empty()), queue, null);
+        final LogInterceptor interceptor = new LogInterceptor(ErrorHandler.class);
+        final Exception first = new IllegalArgumentException("first");
+
+        errorHandler.setProducerThrowable(first);
+        errorHandler.setProducerThrowable(new IllegalStateException("second"));
+        errorHandler.setProducerThrowable(new IllegalStateException("third"));
+
+        assertThat(errorHandler.getProducerThrowable()).isSameAs(first);
+        assertThat(interceptor.getLoggingEvents("Producer failure")).hasSize(1);
     }
 
     private void pollAndAssertRetriable(ChangeEventQueue<DataChangeEvent> queue) throws Exception {
