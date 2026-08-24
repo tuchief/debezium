@@ -40,14 +40,18 @@ public class BinlogDmlFailureLoggingTest {
         failureLogger.warnUnknownTable(TABLE_ID, Envelope.Operation.CREATE, Collections.singletonMap("pos", 100),
                 "mariadb-bin.000001", 100, 120);
         failureLogger.warnUnknownTable(TABLE_ID, Envelope.Operation.CREATE, Collections.singletonMap("pos", 101),
-                "mariadb-bin.000001", 120, 140);
+                "mariadb-bin.000001", 100, 140);
         time.set(WINDOW);
         failureLogger.warnUnknownTable(TABLE_ID, Envelope.Operation.CREATE, Collections.singletonMap("pos", 102),
-                "mariadb-bin.000001", 140, 160);
+                "mariadb-bin.000001", 100, 160);
 
         final List<String> messages = interceptor.getLogEntriesThatContainsMessage("category=UNKNOWN_TABLE");
         assertThat(messages).hasSize(2);
         assertThat(messages.get(1)).contains("suppressedCount=1");
+        assertThat(messages).allMatch(message -> message.contains("lastProcessedPosition=100"));
+        assertThat(messages).allMatch(message -> message.contains("readerPosition="));
+        assertThat(messages).allMatch(message -> !message.contains("startPosition="));
+        assertThat(messages).allMatch(message -> !message.contains("stopPosition="));
         assertThat(messages).allMatch(message -> !message.contains("row-value"));
     }
 
@@ -59,13 +63,15 @@ public class BinlogDmlFailureLoggingTest {
         final DmlFailureLogger failureLogger = new DmlFailureLogger(logger, new FailureLogLimiter());
 
         failureLogger.errorSchemaRowSizeMismatch(TABLE_ID, Envelope.Operation.UPDATE, "after", 2, 1,
-                "mariadb-bin.000054", 914869070);
+                "mariadb-bin.000054", 914869070, 914869112);
 
         final List<String> messages = interceptor.getLogEntriesThatContainsMessage("category=SCHEMA_ROW_SIZE_MISMATCH");
         assertThat(messages).hasSize(1);
         assertThat(messages.get(0))
                 .contains("action=STOP", "table='catalog.customers'", "operation=UPDATE", "image=after",
-                        "internalSchemaSize=2", "rowSize=1", "binlog='mariadb-bin.000054'", "position=914869070")
+                        "internalSchemaSize=2", "rowSize=1", "binlog='mariadb-bin.000054'",
+                        "lastProcessedPosition=914869070", "readerPosition=914869112")
+                .doesNotContain("position=-")
                 .doesNotContain("row-value");
     }
 }

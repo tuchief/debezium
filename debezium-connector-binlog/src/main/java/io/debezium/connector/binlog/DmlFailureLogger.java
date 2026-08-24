@@ -28,28 +28,30 @@ final class DmlFailureLogger {
     }
 
     void warnUnknownTable(TableId tableId, Envelope.Operation operation, Map<String, ?> offset,
-                          String binlogFilename, long startPosition, long stopPosition) {
+                          String binlogFilename, Object lastProcessedPosition, Object readerPosition) {
         final String signature = "UNKNOWN_TABLE|" + tableId + "|" + operationName(operation);
         Loggings.logRateLimitedWarningAndTraceRecord(logger, limiter, signature, null,
                 "[DML_PROCESSING_FAILED] action=CONTINUE, category=UNKNOWN_TABLE, table='{}', operation={}, " +
-                        "offset={}, binlog='{}', startPosition={}, stopPosition={}",
-                tableId, operationName(operation), offset, binlogFilename, startPosition, stopPosition);
+                        "offset={}, binlog='{}', lastProcessedPosition={}, readerPosition={}",
+                tableId, operationName(operation), offset, binlogFilename, lastProcessedPosition, readerPosition);
     }
 
     void errorUnknownTable(TableId tableId, Envelope.Operation operation, Map<String, ?> offset,
-                           String binlogFilename, long startPosition, long stopPosition) {
+                           String binlogFilename, Object lastProcessedPosition, Object readerPosition) {
         Loggings.logErrorNoThrow(logger,
                 "[DML_PROCESSING_FAILED] action=STOP, category=UNKNOWN_TABLE, table='{}', operation={}, " +
-                        "offset={}, binlog='{}', startPosition={}, stopPosition={}",
-                tableId, operationName(operation), offset, binlogFilename, startPosition, stopPosition);
+                        "offset={}, binlog='{}', lastProcessedPosition={}, readerPosition={}",
+                tableId, operationName(operation), offset, binlogFilename, lastProcessedPosition, readerPosition);
     }
 
     void errorSchemaRowSizeMismatch(TableId tableId, Envelope.Operation operation, String image,
-                                    int internalSchemaSize, int rowSize, String binlogFilename, long position) {
+                                    int internalSchemaSize, int rowSize, String binlogFilename,
+                                    Object lastProcessedPosition, Object readerPosition) {
         Loggings.logErrorNoThrow(logger,
                 "[DML_PROCESSING_FAILED] action=STOP, category=SCHEMA_ROW_SIZE_MISMATCH, table='{}', operation={}, " +
-                        "image={}, internalSchemaSize={}, rowSize={}, binlog='{}', position={}",
-                tableId, operationName(operation), image, internalSchemaSize, rowSize, binlogFilename, position);
+                        "image={}, internalSchemaSize={}, rowSize={}, binlog='{}', lastProcessedPosition={}, readerPosition={}",
+                tableId, operationName(operation), image, internalSchemaSize, rowSize, binlogFilename,
+                lastProcessedPosition, readerPosition);
     }
 
     private static String operationName(Envelope.Operation operation) {

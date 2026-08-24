@@ -904,7 +904,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 (tableId, row) -> eventDispatcher.dispatchDataChangeEvent(partition, tableId,
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.CREATE, null, row, connectorConfig)),
                 (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), null, row,
-                        Envelope.Operation.CREATE, offsetContext, event));
+                        Envelope.Operation.CREATE, offsetContext));
     }
 
     /**
@@ -922,7 +922,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.UPDATE, row.getKey(), row.getValue(),
                                 connectorConfig)),
                 (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row.getKey(), row.getValue(),
-                        Envelope.Operation.UPDATE, offsetContext, event));
+                        Envelope.Operation.UPDATE, offsetContext));
     }
 
     /**
@@ -939,7 +939,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                 (tableId, row) -> eventDispatcher.dispatchDataChangeEvent(partition, tableId,
                         new BinlogChangeRecordEmitter<>(partition, offsetContext, clock, Envelope.Operation.DELETE, row, null, connectorConfig)),
                 (tableId, row) -> validateChangeEventWithTable(taskContext.getSchema().tableFor(tableId), row, null,
-                        Envelope.Operation.DELETE, offsetContext, event));
+                        Envelope.Operation.DELETE, offsetContext));
     }
 
     /**
@@ -1061,13 +1061,13 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
 
             if (inconsistentSchemaHandlingMode == EventProcessingFailureHandlingMode.FAIL) {
                 dmlFailureLogger.errorUnknownTable(tableId, operation, offsetContext.getOffset(), offsetContext.getSource().binlogFilename(),
-                        eventHeader.getPosition(), eventHeader.getNextPosition());
+                        lastProcessedPositionForLog(), readerPositionForLog());
                 throw new DebeziumException("Encountered change event for table " + tableId
                         + " whose schema isn't known to this connector");
             }
             else if (inconsistentSchemaHandlingMode == EventProcessingFailureHandlingMode.WARN) {
                 dmlFailureLogger.warnUnknownTable(tableId, operation, offsetContext.getOffset(), offsetContext.getSource().binlogFilename(),
-                        eventHeader.getPosition(), eventHeader.getNextPosition());
+                        lastProcessedPositionForLog(), readerPositionForLog());
             }
             else {
                 LOGGER.debug(
@@ -1114,25 +1114,46 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
     }
 
     private void validateChangeEventWithTable(Table table, Object[] before, Object[] after, Envelope.Operation operation,
-                                              O offsetContext, Event event) {
+                                              O offsetContext) {
         if (table != null) {
             int columnSize = table.columns().size();
-            final EventHeader header = event.getHeader();
-            final long position = header instanceof EventHeaderV4 ? ((EventHeaderV4) header).getPosition() : -1;
+            final Object lastProcessedPosition = lastProcessedPositionForLog();
+            final Object readerPosition = readerPositionForLog();
             if (before != null && columnSize != before.length) {
                 dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "before", columnSize, before.length,
-                        offsetContext.getSource().binlogFilename(), position);
+                        offsetContext.getSource().binlogFilename(), lastProcessedPosition, readerPosition);
                 throw new DebeziumException(
                         "Error processing row in " + table.id().table() + ", internal schema size " + columnSize + ", but row size " + before.length + " , " +
                                 "restart connector with schema recovery mode.");
             }
             if (after != null && columnSize != after.length) {
                 dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "after", columnSize, after.length,
-                        offsetContext.getSource().binlogFilename(), position);
+                        offsetContext.getSource().binlogFilename(), lastProcessedPosition, readerPosition);
                 throw new DebeziumException(
                         "Error processing row in " + table.id().table() + ", internal schema size " + columnSize + ", but row size " + after.length + " , " +
                                 "restart connector with schema recovery mode.");
             }
+        }
+    }
+
+    private Object lastProcessedPositionForLog() {
+        try {
+            final Map<String, ?> offset = lastOffset;
+            final Object position = offset == null ? null : offset.get(BinlogSourceInfo.BINLOG_POSITION_OFFSET_KEY);
+            return position instanceof Number && ((Number) position).longValue() >= 0 ? position : "N/A";
+        }
+        catch (RuntimeException ignored) {
+            return "N/A";
+        }
+    }
+
+    private Object readerPositionForLog() {
+        try {
+            final long position = client == null ? -1 : client.getBinlogPosition();
+            return position >= 0 ? position : "N/A";
+        }
+        catch (RuntimeException ignored) {
+            return "N/A";
         }
     }
 
