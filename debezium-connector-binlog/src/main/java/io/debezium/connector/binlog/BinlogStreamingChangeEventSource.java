@@ -742,16 +742,16 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         QueryEventData command = unwrapData(event);
         LOGGER.debug("Received query command: {}", event);
         String sql = command.getSql().trim();
-        LOGGER.info("Received sql : {}", sql);
+        LOGGER.debug("Received SQL: {}", sql);
 
         // Remove client comments (e.g. /* APPLICATIONNAME=DBEAVER ULTIMATE 25.2.0 - SQLEDITOR <SCRIPT-282.SQL> */ SQL_STATEMENT)
         sql = removeClientComments(sql);
-        LOGGER.info("SQL after removing client comments: {}", sql);
+        LOGGER.debug("SQL after removing client comments: {}", sql);
 
         // Transform DROP INDEX statements to DROP KEY for compatibility with Debezium parser
         if (isAlterTableDropIndexStatement(sql)) {
             sql = transformDropIndexToDropKey(sql);
-            LOGGER.info("Transformed SQL from DROP INDEX to DROP KEY: {}", sql);
+            LOGGER.debug("Transformed SQL from DROP INDEX to DROP KEY: {}", sql);
         }
 
         EventType eventType = event.getHeader().getEventType();
@@ -782,7 +782,8 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             return;
         }
         if (schema.ddlFilter().test(sql)) {
-            LOGGER.debug("DDL '{}' was filtered out of processing", sql);
+            IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
+                    "reason=DDL_FILTER");
             return;
         }
         if (upperCasedStatementBegin.equals("INSERT ") || upperCasedStatementBegin.equals("UPDATE ") || upperCasedStatementBegin.equals("DELETE ")) {
@@ -797,9 +798,11 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
 
         final List<SchemaChangeEvent> schemaChangeEvents = schema.parseStreamingDdl(partition, sql,
                 command.getDatabase(), offsetContext, eventTime);
+        int skippedSchemaChangeEvents = 0;
         try {
             for (SchemaChangeEvent schemaChangeEvent : schemaChangeEvents) {
                 if (schema.skipSchemaChangeEvent(schemaChangeEvent)) {
+                    skippedSchemaChangeEvents++;
                     continue;
                 }
 
@@ -817,6 +820,10 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                         throw new DebeziumException(e);
                     }
                 });
+            }
+            if (skippedSchemaChangeEvents > 0) {
+                IncrementalDdlLogger.info(LOGGER, "INCREMENTAL_DDL_SKIPPED", command.getDatabase(), sql,
+                        "reason=NON_CAPTURED_DATABASE, eventCount=" + skippedSchemaChangeEvents);
             }
         }
         catch (InterruptedException e) {

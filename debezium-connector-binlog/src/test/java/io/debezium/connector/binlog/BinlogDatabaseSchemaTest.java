@@ -6,6 +6,7 @@
 package io.debezium.connector.binlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -98,6 +99,47 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
     }
 
     @Test
+    public void shouldLogOneReceivedAndOneParsedOutcomeForStreamingDdl() {
+        final Configuration config = DATABASE.defaultConfig().build();
+        schema = getSchema(config);
+        schema.initializeStorage();
+        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final P partition = initializePartition(connectorConfig, config);
+        final O offset = initializeOffset(connectorConfig);
+
+        offset.setBinlogStartPoint("binlog.001", 400);
+        schema.parseStreamingDdl(partition, "CREATE TABLE logged_table (id INT)", "db1", offset, Instant.now());
+
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_RECEIVED]")).hasSize(1);
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_PARSED]")).hasSize(1);
+        assertThat(logInterceptor.containsMessage("database='db1'")).isTrue();
+        assertThat(logInterceptor.containsMessage("eventCount=1")).isTrue();
+    }
+
+    @Test
+    public void shouldLogCaptureFilterAsSkippedWithoutParsedOutcome() {
+        final Configuration config = DATABASE.defaultConfigWithoutDatabaseFilter()
+                .with(SchemaHistory.STORE_ONLY_CAPTURED_TABLES_DDL, true)
+                .with(BinlogConnectorConfig.TABLE_INCLUDE_LIST, "captured.ct")
+                .build();
+        schema = getSchema(config);
+        schema.initializeStorage();
+        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
+        final P partition = initializePartition(connectorConfig, config);
+        final O offset = initializeOffset(connectorConfig);
+
+        offset.setBinlogStartPoint("binlog.001", 400);
+        final List<SchemaChangeEvent> events = schema.parseStreamingDdl(partition,
+                "CREATE TABLE captured.not_included (id INT)", "captured", offset, Instant.now());
+
+        assertThat(events).isEmpty();
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_RECEIVED]")).hasSize(1);
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_SKIPPED]")).hasSize(1);
+        assertThat(logInterceptor.containsMessage("reason=CAPTURE_FILTER")).isTrue();
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_PARSED]")).isEmpty();
+    }
+
+    @Test
     public void shouldIgnoreUnparseableDdlAndRecover() throws InterruptedException {
         // Testing.Print.enable();
         final Configuration config = DATABASE.defaultConfig()
@@ -115,14 +157,17 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         offset.setBinlogStartPoint("binlog.001", 400);
         schema.parseStreamingDdl(partition, "SET " + BinlogSystemVariables.CHARSET_NAME_SERVER + "=utf8mb4", null,
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
+        logInterceptor.clear();
         schema.parseStreamingDdl(partition, "xxxCREATE TABLE mytable\n" + IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
-        assertThat(logInterceptor.containsWarnMessage(
-                "Skipping unparseable DDL because 'schema.history.internal.skip.unparseable.ddl' is enabled")).isTrue();
-        assertThat(logInterceptor.containsWarnMessage("Database: 'db1'")).isTrue();
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_RECEIVED]")).hasSize(1);
+        assertThat(logInterceptor.getLoggingEvents("[INCREMENTAL_DDL_PARSE_FAILED]")).hasSize(1);
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_PARSED]")).isEmpty();
+        assertThat(logInterceptor.containsWarnMessage("action=CONTINUE")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage("schema.history.internal.skip.unparseable.ddl=true")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage("database='db1'")).isTrue();
         assertThat(logInterceptor.containsWarnMessage("xxxCREATE TABLE mytable")).isTrue();
-        assertThat(logInterceptor.containsWarnMessage(
-                "Schema state may contain changes applied before the parsing failure")).isTrue();
+        assertThat(logInterceptor.containsWarnMessage("schemaStateMayBePartial=true")).isTrue();
         schema.parseStreamingDdl(partition, IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
         schema.close();
@@ -140,13 +185,14 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         assertThat(historyLogInterceptor.containsWarnMessage("Schema recovery may be incomplete")).isTrue();
     }
 
-    @Test(expected = ParsingException.class)
-    public void shouldFailOnUnparseableDdl() throws InterruptedException {
+    @Test
+    public void shouldLogStoppingOutcomeBeforeFailingOnUnparseableDdl() throws InterruptedException {
         // Testing.Print.enable();
         final Configuration config = DATABASE.defaultConfig()
                 .build();
         schema = getSchema(config);
         schema.initializeStorage();
+        final LogInterceptor logInterceptor = new LogInterceptor(BinlogDatabaseSchema.class);
         final P partition = initializePartition(connectorConfig, config);
         final O offset = initializeOffset(connectorConfig);
 
@@ -154,8 +200,16 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         offset.setBinlogStartPoint("binlog.001", 400);
         schema.parseStreamingDdl(partition, "SET " + BinlogSystemVariables.CHARSET_NAME_SERVER + "=utf8mb4", null,
                 offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
-        schema.parseStreamingDdl(partition, "xxxCREATE TABLE mytable\n" + IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
-                offset, Instant.now()).forEach(x -> schema.applySchemaChange(x));
+        logInterceptor.clear();
+
+        assertThatThrownBy(() -> schema.parseStreamingDdl(partition,
+                "xxxCREATE TABLE mytable\n" + IoUtil.readClassPathResource("ddl/mysql-products.ddl"), "db1",
+                offset, Instant.now())).isInstanceOf(ParsingException.class);
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_RECEIVED]")).hasSize(1);
+        assertThat(logInterceptor.getLoggingEvents("[INCREMENTAL_DDL_PARSE_FAILED]")).hasSize(1);
+        assertThat(logInterceptor.containsErrorMessage("action=STOP")).isTrue();
+        assertThat(logInterceptor.containsErrorMessage("schema.history.internal.skip.unparseable.ddl=false")).isTrue();
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_PARSED]")).isEmpty();
     }
 
     @Test
