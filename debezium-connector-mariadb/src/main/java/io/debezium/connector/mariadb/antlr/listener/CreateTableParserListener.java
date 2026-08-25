@@ -12,6 +12,7 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 import io.debezium.connector.mariadb.antlr.MariaDbAntlrDdlParser;
 import io.debezium.ddl.parser.mariadb.generated.MariaDBParser;
+import io.debezium.relational.Attribute;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -96,5 +97,16 @@ public class CreateTableParserListener extends TableCommonParserListener {
             }, tableEditor);
         }
         super.enterTableOptionComment(ctx);
+    }
+
+    @Override
+    public void enterTableOptionUnion(MariaDBParser.TableOptionUnionContext ctx) {
+        if ("WITHSYSTEMVERSIONING".equalsIgnoreCase(ctx.getText())) {
+            parser.runIfNotNull(() -> tableEditor.addAttribute(Attribute.editor()
+                    .name(MariaDbAntlrDdlParser.SYSTEM_VERSIONED_TABLE_ATTRIBUTE)
+                    .value(true)
+                    .create()), tableEditor);
+        }
+        super.enterTableOptionUnion(ctx);
     }
 }

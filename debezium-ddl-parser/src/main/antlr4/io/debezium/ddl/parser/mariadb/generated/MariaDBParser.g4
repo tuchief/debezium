@@ -30,6 +30,13 @@ options {
     tokenVocab = MariaDBLexer;
 }
 
+@members {
+    private boolean isSystemVersioning() {
+        return "SYSTEM".equalsIgnoreCase(_input.LT(1).getText())
+                && "VERSIONING".equalsIgnoreCase(_input.LT(2).getText());
+    }
+}
+
 // Top Level Description
 
 root
@@ -573,7 +580,7 @@ tableOption
     | TABLE_TYPE '=' tableType                                    # tableOptionTableType
     | tablespaceStorage                                           # tableOptionTablespace
     | TRANSACTIONAL '='? ('0' | '1')                              # tableOptionTransactional
-    | UNION '='? '(' tables ')'                                   # tableOptionUnion
+    | (UNION '='? '(' tables ')' | WITH {isSystemVersioning()}? uid uid) # tableOptionUnion
     ;
 
 tableType

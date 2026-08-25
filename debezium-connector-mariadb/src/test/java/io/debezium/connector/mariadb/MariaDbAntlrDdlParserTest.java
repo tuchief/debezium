@@ -137,6 +137,26 @@ public class MariaDbAntlrDdlParserTest extends BinlogAntlrDdlParserTest<MariaDbV
     }
 
     @Test
+    public void shouldParseSystemVersionedTableInOracleMode() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener());
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE \"t_sm_mix_10\" (" +
+                "\"id\" decimal(10,0) NOT NULL," +
+                "\"name\" varchar(100) DEFAULT NULL," +
+                "PRIMARY KEY (\"id\")" +
+                ") WITH SYSTEM VERSIONING", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "t_sm_mix_10"));
+        assertThat(table).isNotNull();
+        assertThat(table.attributeWithName(MariaDbAntlrDdlParser.SYSTEM_VERSIONED_TABLE_ATTRIBUTE).asBoolean()).isTrue();
+        assertThat(table.primaryKeyColumnNames()).containsExactly("id");
+        assertThat(table.columnWithName("id").typeName()).isEqualTo("DECIMAL");
+        assertThat(table.columnWithName("name").typeName()).isEqualTo("VARCHAR");
+    }
+
+    @Test
     public void shouldRemoveColumnWhenDropColumnUsesCascade() {
         final SimpleDdlParserListener listener = new SimpleDdlParserListener();
         final MariaDbAntlrDdlParser parser = getParser(listener);

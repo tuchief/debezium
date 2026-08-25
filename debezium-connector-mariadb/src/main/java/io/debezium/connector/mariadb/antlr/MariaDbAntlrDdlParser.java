@@ -45,6 +45,8 @@ import io.debezium.relational.Tables;
  */
 public class MariaDbAntlrDdlParser extends AntlrDdlParser<MariaDBLexer, MariaDBParser> {
 
+    public static final String SYSTEM_VERSIONED_TABLE_ATTRIBUTE = "mariadb.system.versioned";
+
     private final ConcurrentHashMap<String, String> charsetNameForDatabase = new ConcurrentHashMap<>();
     private final Tables.TableFilter tableFilter;
     private final BinlogCharsetRegistry charsetRegistry;

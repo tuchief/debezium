@@ -1119,14 +1119,14 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             int columnSize = table.columns().size();
             final Object lastProcessedPosition = lastProcessedPositionForLog();
             final Object readerPosition = readerPositionForLog();
-            if (before != null && columnSize != before.length) {
+            if (before != null && !isExpectedRowSize(table, before)) {
                 dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "before", columnSize, before.length,
                         offsetContext.getSource().binlogFilename(), lastProcessedPosition, readerPosition);
                 throw new DebeziumException(
                         "Error processing row in " + table.id().table() + ", internal schema size " + columnSize + ", but row size " + before.length + " , " +
                                 "restart connector with schema recovery mode.");
             }
-            if (after != null && columnSize != after.length) {
+            if (after != null && !isExpectedRowSize(table, after)) {
                 dmlFailureLogger.errorSchemaRowSizeMismatch(table.id(), operation, "after", columnSize, after.length,
                         offsetContext.getSource().binlogFilename(), lastProcessedPosition, readerPosition);
                 throw new DebeziumException(
@@ -1134,6 +1134,10 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
                                 "restart connector with schema recovery mode.");
             }
         }
+    }
+
+    protected boolean isExpectedRowSize(Table table, Object[] row) {
+        return table.columns().size() == row.length;
     }
 
     private Object lastProcessedPositionForLog() {
