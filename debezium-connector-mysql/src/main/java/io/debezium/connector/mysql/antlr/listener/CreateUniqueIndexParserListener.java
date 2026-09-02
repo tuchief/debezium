@@ -83,10 +83,9 @@ public class CreateUniqueIndexParserListener extends MySqlParserBaseListener {
                     // usually contains a single identifier. To be defensive and avoid
                     // invalid assumptions, always use the last UID if multiple are present.
                     int uidCount = ctx.fullId().uid().size();
-                    String indexName =
-                            uidCount == 1
-                                    ? parser.parseName(ctx.fullId().uid(0))
-                                    : parser.parseName(ctx.fullId().uid(uidCount - 1));
+                    String indexName = uidCount == 1
+                            ? parser.parseName(ctx.fullId().uid(0))
+                            : parser.parseName(ctx.fullId().uid(uidCount - 1));
 
                     // Notify the parser about the created unique index.
                     parser.signalCreateIndex(indexName, tableId, ctx);
@@ -103,25 +102,27 @@ public class CreateUniqueIndexParserListener extends MySqlParserBaseListener {
 
         // Continue walking the parse tree.
         super.enterCreateIndex(ctx);
-        /*if (ctx.UNIQUE() != null) {
-            TableId tableId = parser.parseQualifiedTableId(ctx.tableName().fullId());
-            if (!parser.getTableFilter().isIncluded(tableId)) {
-                LOG.debug("{} is not monitored, no need to process unique index", tableId);
-                return;
-            }
-            TableEditor tableEditor = parser.databaseTables().editTable(tableId);
-            if (tableEditor != null) {
-                if (!tableEditor.hasPrimaryKey() && parser.isTableUniqueIndexIncluded(ctx.indexColumnNames(), tableEditor)) {
-                    parser.parseUniqueIndexColumnNames(ctx.indexColumnNames(), tableEditor);
-                    parser.databaseTables().overwriteTable(tableEditor.create());
-                    parser.signalCreateIndex(parser.parseName(ctx.fullId().uid(1)), tableId, ctx);
-                }
-            }
-            else {
-                throw new ParsingException(null, "Trying to create index on non existing table " + tableId.toString() + "."
-                        + "Query: " + getText(ctx));
-            }
-        }
-        super.enterCreateIndex(ctx);*/
+        /*
+         * if (ctx.UNIQUE() != null) {
+         * TableId tableId = parser.parseQualifiedTableId(ctx.tableName().fullId());
+         * if (!parser.getTableFilter().isIncluded(tableId)) {
+         * LOG.debug("{} is not monitored, no need to process unique index", tableId);
+         * return;
+         * }
+         * TableEditor tableEditor = parser.databaseTables().editTable(tableId);
+         * if (tableEditor != null) {
+         * if (!tableEditor.hasPrimaryKey() && parser.isTableUniqueIndexIncluded(ctx.indexColumnNames(), tableEditor)) {
+         * parser.parseUniqueIndexColumnNames(ctx.indexColumnNames(), tableEditor);
+         * parser.databaseTables().overwriteTable(tableEditor.create());
+         * parser.signalCreateIndex(parser.parseName(ctx.fullId().uid(1)), tableId, ctx);
+         * }
+         * }
+         * else {
+         * throw new ParsingException(null, "Trying to create index on non existing table " + tableId.toString() + "."
+         * + "Query: " + getText(ctx));
+         * }
+         * }
+         * super.enterCreateIndex(ctx);
+         */
     }
 }
