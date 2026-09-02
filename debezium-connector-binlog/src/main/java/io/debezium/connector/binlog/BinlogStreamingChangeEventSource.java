@@ -224,7 +224,7 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
             EventBuffer<?, P, O> buffer = new EventBuffer<>(connectorConfig.getBufferSizeForStreamingChangeEventSource(), this, context);
             listener = (event) -> buffer.add(partition, effectiveOffsetContext, event);
         }
-        client.registerEventListener(listener);
+        client.registerEventListener(trackBinlogEventTimestamp(effectiveOffsetContext, listener));
 
         client.registerLifecycleListener(new ReaderThreadLifecycleListener(effectiveOffsetContext));
         client.registerEventListener((event) -> onEvent(effectiveOffsetContext, event));
@@ -568,6 +568,15 @@ public abstract class BinlogStreamingChangeEventSource<P extends BinlogPartition
         ts = clock.currentTimeInMillis() - eventTimestamp.toEpochMilli();
         LOGGER.trace("Current milliseconds behind source: {} ms", ts);
         metrics.setMilliSecondsBehindSource(ts);
+    }
+
+    static BinaryLogClient.EventListener trackBinlogEventTimestamp(BinlogOffsetContext<?> offsetContext,
+                                                                   BinaryLogClient.EventListener delegate) {
+        return event -> {
+            final EventHeader eventHeader = event.getHeader();
+            offsetContext.recordBinlogEvent(eventHeader.getEventType(), eventHeader.getTimestamp());
+            delegate.onEvent(event);
+        };
     }
 
     protected abstract void setEventTimestamp(Event event, long eventTs);

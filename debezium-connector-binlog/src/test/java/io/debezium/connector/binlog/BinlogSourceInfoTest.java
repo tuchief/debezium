@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.apache.kafka.connect.data.Schema;
@@ -22,6 +23,10 @@ import org.apache.kafka.connect.data.Struct;
 import org.assertj.core.api.AbstractAssert;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.github.shyiko.mysql.binlog.event.Event;
+import com.github.shyiko.mysql.binlog.event.EventHeaderV4;
+import com.github.shyiko.mysql.binlog.event.EventType;
 
 import io.confluent.connect.avro.AvroData;
 import io.debezium.config.CommonConnectorConfig;
@@ -632,6 +637,51 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
         source.setSourceTime(Instant.ofEpochSecond(1_024, 0));
         source.databaseEvent("mysql");
         assertThat(source.struct().get("ts_ms")).isEqualTo(1_024_000L);
+    }
+
+    @Test
+    public void shouldStoreLastBinlogEventTimestampInOffset() {
+        offsetContext.recordBinlogEvent(EventType.WRITE_ROWS, 1_024_567L);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(1_024_567L);
+    }
+
+    @Test
+    public void shouldNotUpdateLastBinlogEventTimestampForHeartbeatOrZeroTimestamp() {
+        offsetContext.recordBinlogEvent(EventType.WRITE_ROWS, 1_024_567L);
+
+        offsetContext.recordBinlogEvent(EventType.HEARTBEAT, 2_048_000L);
+        offsetContext.recordBinlogEvent(EventType.QUERY, 0L);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(1_024_567L);
+    }
+
+    @Test
+    public void shouldRecordLastBinlogEventTimestampBeforeRoutingEvent() {
+        final EventHeaderV4 header = new EventHeaderV4();
+        header.setEventType(EventType.QUERY);
+        header.setTimestamp(2_048_123L);
+        final Event event = new Event(header, null);
+        final AtomicReference<Object> timestampSeenByDelegate = new AtomicReference<>();
+
+        BinlogStreamingChangeEventSource.trackBinlogEventTimestamp(offsetContext, routedEvent -> timestampSeenByDelegate.set(
+                offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY)))
+                .onEvent(event);
+
+        assertThat(timestampSeenByDelegate).hasValue(2_048_123L);
+    }
+
+    @Test
+    public void shouldRecoverLastBinlogEventTimestampFromOffset() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY, "1024567");
+
+        sourceWith(storedOffset);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(1_024_567L);
     }
 
     @Test

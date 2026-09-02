@@ -12,6 +12,8 @@ import java.util.Set;
 
 import org.apache.kafka.connect.data.Schema;
 
+import com.github.shyiko.mysql.binlog.event.EventType;
+
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.SnapshotType;
@@ -34,6 +36,7 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
 
     public static final String EVENTS_TO_SKIP_OFFSET_KEY = "event";
     public static final String TIMESTAMP_KEY = "ts_sec";
+    public static final String LAST_BINLOG_EVENT_TIMESTAMP_KEY = "last_binlog_event_ts_ms";
     public static final String GTID_SET_KEY = "gtids";
     public static final String NON_GTID_TRANSACTION_ID_FORMAT = "file=%s,pos=%s";
 
@@ -49,6 +52,7 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
     private long currentEventLengthInBytes = 0;
     private boolean inTransaction = false;
     private String transactionId = null;
+    private Instant lastBinlogEventTimestamp;
 
     public BinlogOffsetContext(SnapshotType snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                IncrementalSnapshotContext<TableId> incrementalSnapshotContext, T sourceInfo) {
@@ -109,6 +113,16 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
     public void setInitialSkips(long restartEventsToSkip, int restartRowsToSkip) {
         this.restartEventsToSkip = restartEventsToSkip;
         this.restartRowsToSkip = restartRowsToSkip;
+    }
+
+    public void setLastBinlogEventTimestamp(Instant timestamp) {
+        this.lastBinlogEventTimestamp = timestamp;
+    }
+
+    public void recordBinlogEvent(EventType eventType, long timestamp) {
+        if (eventType != EventType.HEARTBEAT && timestamp != 0) {
+            setLastBinlogEventTimestamp(Instant.ofEpochMilli(timestamp));
+        }
     }
 
     public void databaseEvent(String database, Instant timestamp) {
@@ -334,6 +348,9 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
         }
         if (sourceInfo.timestamp() != null) {
             map.put(TIMESTAMP_KEY, sourceInfo.timestamp().getEpochSecond());
+        }
+        if (lastBinlogEventTimestamp != null) {
+            map.put(LAST_BINLOG_EVENT_TIMESTAMP_KEY, lastBinlogEventTimestamp.toEpochMilli());
         }
         return map;
     }
