@@ -6,6 +6,7 @@
 package io.debezium.connector.binlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 
 import java.time.Instant;
@@ -29,6 +30,7 @@ import com.github.shyiko.mysql.binlog.event.EventHeaderV4;
 import com.github.shyiko.mysql.binlog.event.EventType;
 
 import io.confluent.connect.avro.AvroData;
+import io.debezium.DebeziumException;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.AbstractSourceInfoStructMaker;
@@ -659,6 +661,16 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
     }
 
     @Test
+    public void shouldNotMoveLastBinlogEventTimestampBackward() {
+        offsetContext.recordBinlogEvent(EventType.WRITE_ROWS, 2_048_123L);
+
+        offsetContext.recordBinlogEvent(EventType.QUERY, 1_024_567L);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_123L);
+    }
+
+    @Test
     public void shouldRecordLastBinlogEventTimestampBeforeRoutingEvent() {
         final EventHeaderV4 header = new EventHeaderV4();
         header.setEventType(EventType.QUERY);
@@ -682,6 +694,63 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
 
         assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
                 .isEqualTo(1_024_567L);
+    }
+
+    @Test
+    public void shouldRecoverLastBinlogEventTimestampFromLegacySourceTimestamp() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "2048");
+
+        sourceWith(storedOffset);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_000L);
+    }
+
+    @Test
+    public void shouldRecoverNewerSourceTimestampFromOffset() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "2048");
+        storedOffset.put(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY, "1024567");
+
+        sourceWith(storedOffset);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_000L);
+    }
+
+    @Test
+    public void shouldRecoverNewerLastBinlogEventTimestampFromOffset() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "1024");
+        storedOffset.put(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY, "2048123");
+
+        sourceWith(storedOffset);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_123L);
+    }
+
+    @Test
+    public void shouldLeaveLastBinlogEventTimestampAbsentWhenOffsetHasNoTimestamp() {
+        sourceWith(offset(100, 5));
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isNull();
+    }
+
+    @Test
+    public void shouldRejectSourceTimestampOutsideMillisecondRange() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "9223372036854776");
+
+        assertThatThrownBy(() -> {
+            sourceWith(storedOffset);
+            offsetContext.getOffset();
+        })
+                .isInstanceOf(DebeziumException.class)
+                .hasMessageContaining(BinlogOffsetContext.TIMESTAMP_KEY)
+                .hasMessageContaining("9223372036854776");
     }
 
     @Test

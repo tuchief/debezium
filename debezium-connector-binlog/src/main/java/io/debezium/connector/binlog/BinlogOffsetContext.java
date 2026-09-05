@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.binlog;
 
+import static io.debezium.connector.common.OffsetUtils.longOffsetValue;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +16,7 @@ import org.apache.kafka.connect.data.Schema;
 
 import com.github.shyiko.mysql.binlog.event.EventType;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.SnapshotType;
@@ -116,7 +119,9 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
     }
 
     public void setLastBinlogEventTimestamp(Instant timestamp) {
-        this.lastBinlogEventTimestamp = timestamp;
+        if (lastBinlogEventTimestamp == null || timestamp.isAfter(lastBinlogEventTimestamp)) {
+            this.lastBinlogEventTimestamp = timestamp;
+        }
     }
 
     public void recordBinlogEvent(EventType eventType, long timestamp) {
@@ -356,6 +361,23 @@ public class BinlogOffsetContext<T extends BinlogSourceInfo> extends CommonOffse
     }
 
     public static abstract class Loader<O extends BinlogOffsetContext> implements OffsetContext.Loader<O> {
+
+        protected void loadLastBinlogEventTimestamp(O offsetContext, Map<String, ?> offset) {
+            if (offset.containsKey(TIMESTAMP_KEY)) {
+                final long timestamp = longOffsetValue(offset, TIMESTAMP_KEY);
+                try {
+                    offsetContext.setLastBinlogEventTimestamp(Instant.ofEpochMilli(Math.multiplyExact(timestamp, 1_000L)));
+                }
+                catch (ArithmeticException e) {
+                    throw new DebeziumException("Source offset '" + TIMESTAMP_KEY + "' parameter value " + offset.get(TIMESTAMP_KEY)
+                            + " cannot be represented in milliseconds", e);
+                }
+            }
+            if (offset.containsKey(LAST_BINLOG_EVENT_TIMESTAMP_KEY)) {
+                offsetContext.setLastBinlogEventTimestamp(Instant.ofEpochMilli(longOffsetValue(offset, LAST_BINLOG_EVENT_TIMESTAMP_KEY)));
+            }
+        }
+
         protected static boolean isTrue(Map<String, ?> offset, String key) {
             return Boolean.TRUE.equals(offset.get(key)) || "true".equals(offset.get(key));
         }
