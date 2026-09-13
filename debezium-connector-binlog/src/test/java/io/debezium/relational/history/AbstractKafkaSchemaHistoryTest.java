@@ -11,14 +11,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.ConfigValue;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -35,6 +39,7 @@ import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.kafka.KafkaCluster;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.pipeline.spi.Partition;
+import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
 import io.debezium.relational.ddl.DdlParser;
 import io.debezium.storage.kafka.history.KafkaSchemaHistory;
@@ -110,6 +115,109 @@ public abstract class AbstractKafkaSchemaHistoryTest<P extends BinlogPartition, 
         // Create the empty topic ...
         kafka.createTopic(topicName, 1, 1);
         testHistoryTopicContent(topicName, false);
+    }
+
+    @Test(timeout = 30000)
+    @FixFor("DBZ-2032")
+    public void shouldRecoverWhenAnotherConsumerHoldsTheGroupPartition() throws Exception {
+        String topicName = "concurrent-recovery-schema-changes";
+        String historyName = "my-db-history";
+
+        kafka.createTopic(topicName, 1, 1);
+
+        Configuration config = recoveryConfig(topicName, historyName);
+
+        history.configure(config, null, SchemaHistoryMetrics.NOOP, true);
+        history.start();
+        history.initializeStorage();
+        setLogPosition(0);
+        String ddl = "CREATE TABLE foo ( name VARCHAR(255) NOT NULL PRIMARY KEY);";
+        history.record(offsets.getTheOnlyPartition().getSourcePartition(), offsets.getTheOnlyOffset().getOffset(), "db1", ddl);
+        history.stop();
+
+        DdlParser ddlParser = getDdlParser();
+        ddlParser.setCurrentSchema("db1");
+        Tables expected = new Tables();
+        ddlParser.parse(ddl, expected);
+        assertThat(expected.size()).isEqualTo(1);
+
+        Configuration squatterConfig = Configuration.create()
+                .with(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.brokerList())
+                .with(ConsumerConfig.GROUP_ID_CONFIG, historyName)
+                .with(ConsumerConfig.CLIENT_ID_CONFIG, "squatter")
+                .with(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false)
+                .with(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                .with(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)
+                .with(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)
+                .build();
+
+        try (KafkaConsumer<String, String> squatter = new KafkaConsumer<>(squatterConfig.asProperties())) {
+            squatter.subscribe(Collections.singletonList(topicName));
+            long deadline = System.currentTimeMillis() + 10000;
+            while (squatter.assignment().isEmpty() && System.currentTimeMillis() < deadline) {
+                squatter.poll(Duration.ofMillis(100));
+            }
+            assertThat(squatter.assignment()).isNotEmpty();
+
+            history = new KafkaSchemaHistory();
+            history.configure(config, null, SchemaHistoryListener.NOOP, true);
+            Tables recovered = new Tables();
+            setLogPosition(100);
+            history.recover(offsets, recovered, getDdlParser());
+
+            assertThat(recovered).isEqualTo(expected);
+        }
+    }
+
+    @Test
+    public void shouldStoreAndRecoverBufferedRecords() throws Exception {
+        String topicName = "buffered-schema-changes";
+        kafka.createTopic(topicName, 1, 1);
+
+        Configuration config = recoveryConfig(topicName, "buffered-db-history").edit()
+                .with(KafkaSchemaHistory.BUFFER_BATCH_SIZE, 2)
+                .build();
+        history.configure(config, null, SchemaHistoryMetrics.NOOP, true);
+        history.start();
+        history.initializeStorage();
+
+        history.startBuffering();
+        try {
+            for (int i = 1; i <= 3; i++) {
+                setLogPosition(i);
+                history.record(offsets.getTheOnlyPartition().getSourcePartition(), offsets.getTheOnlyOffset().getOffset(),
+                        "db1", "CREATE TABLE buffered_" + i + " (id INT PRIMARY KEY);");
+            }
+        }
+        finally {
+            history.stopBuffering();
+        }
+        history.stop();
+
+        history = new KafkaSchemaHistory();
+        history.configure(config, null, SchemaHistoryListener.NOOP, true);
+        Tables recovered = new Tables();
+        setLogPosition(100);
+        history.recover(offsets, recovered, getDdlParser());
+
+        assertThat(recovered.size()).isEqualTo(3);
+        assertThat(recovered.tableIds()).extracting(TableId::table)
+                .containsExactlyInAnyOrder("buffered_1", "buffered_2", "buffered_3");
+    }
+
+    private Configuration recoveryConfig(String topicName, String historyName) {
+        return Configuration.create()
+                .with(KafkaSchemaHistory.BOOTSTRAP_SERVERS, kafka.brokerList())
+                .with(KafkaSchemaHistory.TOPIC, topicName)
+                .with(SchemaHistory.NAME, historyName)
+                .with(KafkaSchemaHistory.RECOVERY_POLL_INTERVAL_MS, 500)
+                .with(KafkaSchemaHistory.consumerConfigPropertyName(
+                        ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG), 100)
+                .with(KafkaSchemaHistory.consumerConfigPropertyName(
+                        ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG), 50000)
+                .with(KafkaSchemaHistory.INTERNAL_CONNECTOR_CLASS, "org.apache.kafka.connect.source.SourceConnector")
+                .with(KafkaSchemaHistory.INTERNAL_CONNECTOR_ID, "dbz-test")
+                .build();
     }
 
     protected abstract P createPartition(String serverName, String databaseName);
@@ -411,7 +519,8 @@ public abstract class AbstractKafkaSchemaHistoryTest<P extends BinlogPartition, 
                 "schema.history.internal.kafka.recovery.poll.interval.ms",
                 "schema.history.internal.connector.id",
                 "schema.history.internal.kafka.recovery.attempts",
-                "schema.history.internal.kafka.query.timeout.ms"));
+                "schema.history.internal.kafka.query.timeout.ms",
+                "schema.history.internal.kafka.buffer.batch.size"));
     }
 
     @Test

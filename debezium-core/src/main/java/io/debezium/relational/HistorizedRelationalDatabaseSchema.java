@@ -128,6 +128,10 @@ public abstract class HistorizedRelationalDatabaseSchema extends RelationalDatab
         return historizedConnectorConfig.storeOnlyCapturedDatabases();
     }
 
+    public SchemaHistory getSchemaHistory() {
+        return schemaHistory;
+    }
+
     @Override
     public boolean skipUnparseableDdlStatements() {
         return historizedConnectorConfig.skipUnparseableDdlStatements();

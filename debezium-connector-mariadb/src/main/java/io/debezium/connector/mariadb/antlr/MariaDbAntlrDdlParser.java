@@ -184,6 +184,8 @@ public class MariaDbAntlrDdlParser extends AntlrDdlParser<MariaDBLexer, MariaDBP
                         .setDefaultLengthScaleDimension(10, 0),
                 new DataTypeResolver.DataTypeEntry(Types.BIT, MariaDBParser.BIT)
                         .setDefaultLengthDimension(1),
+                new DataTypeResolver.DataTypeEntry(Types.OTHER, MariaDBParser.UUID_SHORT)
+                        .setDefaultLengthDimension(2048),
                 new DataTypeResolver.DataTypeEntry(Types.TIME, MariaDBParser.TIME),
                 new DataTypeResolver.DataTypeEntry(Types.TIMESTAMP_WITH_TIMEZONE, MariaDBParser.TIMESTAMP),
                 new DataTypeResolver.DataTypeEntry(Types.TIMESTAMP, MariaDBParser.DATETIME),
@@ -224,6 +226,9 @@ public class MariaDbAntlrDdlParser extends AntlrDdlParser<MariaDBLexer, MariaDBP
         dataTypeResolverBuilder.registerDataTypes(MariaDBParser.LongVarcharDataTypeContext.class.getCanonicalName(), Arrays.asList(
                 new DataTypeResolver.DataTypeEntry(Types.VARCHAR, MariaDBParser.LONG)
                         .setSuffixTokens(MariaDBParser.VARCHAR)));
+
+        dataTypeResolverBuilder.registerDataTypes(MariaDBParser.UuidDataTypeContext.class.getCanonicalName(), Arrays.asList(
+                new DataTypeResolver.DataTypeEntry(Types.OTHER, MariaDBParser.UUID)));
 
         return dataTypeResolverBuilder.build();
     }

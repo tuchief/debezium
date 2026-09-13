@@ -219,4 +219,34 @@ public interface SchemaHistory {
      * Called to initialize permanent storage of the history.
      */
     void initializeStorage();
+
+    /**
+     * Starts buffering write operations. Implementations that do not support buffering keep their
+     * normal synchronous behavior.
+     */
+    default void startBuffering() {
+    }
+
+    /**
+     * Stops buffering and verifies that all pending writes are durable before returning.
+     *
+     * @throws SchemaHistoryException if a pending write failed
+     */
+    default void stopBuffering() {
+    }
+
+    /**
+     * Starts buffering and returns a scope suitable for try-with-resources. If both the scoped
+     * operation and the final drain fail, the drain failure is retained as a suppressed exception.
+     */
+    default BufferingScope buffering() {
+        startBuffering();
+        return this::stopBuffering;
+    }
+
+    @FunctionalInterface
+    interface BufferingScope extends AutoCloseable {
+        @Override
+        void close();
+    }
 }

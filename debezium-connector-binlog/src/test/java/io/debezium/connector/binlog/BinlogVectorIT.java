@@ -18,11 +18,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.debezium.config.Configuration;
-import io.debezium.connector.binlog.util.BinlogTestConnection;
 import io.debezium.connector.binlog.util.TestHelper;
 import io.debezium.connector.binlog.util.UniqueDatabase;
 import io.debezium.data.vector.FloatVector;
-import io.debezium.jdbc.JdbcConnection;
 import io.debezium.junit.SkipWhenDatabaseVersion;
 
 /**
@@ -31,17 +29,23 @@ import io.debezium.junit.SkipWhenDatabaseVersion;
 @SkipWhenDatabaseVersion(check = LESS_THAN, major = 9, minor = 0, reason = "VECTOR datatype not added until MySQL 9.0")
 public abstract class BinlogVectorIT<C extends SourceConnector> extends AbstractBinlogConnectorIT<C> {
 
+    private final String databaseName;
+
+    protected BinlogVectorIT(String databaseName) {
+        this.databaseName = databaseName;
+    }
+
     private static final Path SCHEMA_HISTORY_PATH = Files.createTestingPath("file-schema-history-json.txt")
             .toAbsolutePath();
-    private UniqueDatabase DATABASE;
+    protected UniqueDatabase DATABASE;
 
-    private Configuration config;
+    protected Configuration config;
 
     @Before
     public void beforeEach() {
         stopConnector();
 
-        DATABASE = TestHelper.getUniqueDatabase("vectorit", "vector_test")
+        DATABASE = TestHelper.getUniqueDatabase("vectorit", databaseName)
                 .withDbHistoryPath(SCHEMA_HISTORY_PATH);
         DATABASE.createAndInitialize();
 
@@ -138,43 +142,4 @@ public abstract class BinlogVectorIT<C extends SourceConnector> extends Abstract
         stopConnector();
     }
 
-    @Test
-    public void shouldConsumeAllEventsFromDatabaseUsingStreaming() throws SQLException, InterruptedException {
-        // Use the DB configuration to define the connector's configuration ...
-        config = DATABASE.defaultConfig()
-                .with(BinlogConnectorConfig.SNAPSHOT_MODE, BinlogConnectorConfig.SnapshotMode.NO_DATA)
-                .build();
-
-        // Start the connector ...
-        start(getConnectorClass(), config);
-
-        // ---------------------------------------------------------------------------------------------------------------
-        // Consume all of the events due to startup and initialization of the database
-        // ---------------------------------------------------------------------------------------------------------------
-        // Testing.Debug.enable();
-        int numTables = 1;
-        int numDdlRecords = numTables * 2 + 3; // for each table (1 drop + 1 create) + for each db (1 create + 1 drop + 1 use)
-        int numSetVariables = 1;
-        var records = consumeRecordsByTopic(numDdlRecords + numSetVariables);
-
-        try (BinlogTestConnection db = getTestDatabaseConnection(DATABASE.getDatabaseName());) {
-            try (JdbcConnection connection = db.connect()) {
-                connection.execute(
-                        "INSERT INTO dbz_8157 VALUES (default, string_to_vector('[10.1,10.2]'),string_to_vector('[20.1,20.2]'),string_to_vector('[30.1,30.2]'));");
-            }
-        }
-        records = consumeRecordsByTopic(1);
-
-        assertThat(records).isNotNull();
-        final var dataRecords = records.recordsForTopic(DATABASE.topicForTable("dbz_8157"));
-        assertThat(dataRecords).hasSize(1);
-        var record = dataRecords.get(0);
-        var after = ((Struct) record.value()).getStruct("after");
-        assertThat(after.schema().field("f_vector_null").schema().name()).isEqualTo(FloatVector.LOGICAL_NAME);
-        assertThat(after.getArray("f_vector_null")).containsExactly(10.1f, 10.2f);
-        assertThat(after.getArray("f_vector_default")).containsExactly(20.1f, 20.2f);
-        assertThat(after.getArray("f_vector_cons")).containsExactly(30.1f, 30.2f);
-
-        stopConnector();
-    }
 }

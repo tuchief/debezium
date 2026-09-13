@@ -1620,6 +1620,17 @@ public class JdbcConnection implements AutoCloseable {
     }
 
     /**
+     * Returns an SQL identifier representing the given database object name.
+     */
+    public String quoteIdentifier(String name) {
+        if (name.contains(closingQuoteCharacter)) {
+            name = name.replace(closingQuoteCharacter, closingQuoteCharacter + closingQuoteCharacter);
+        }
+
+        return openingQuoteCharacter + name + closingQuoteCharacter;
+    }
+
+    /**
      * Converts a table id into a string with all components of the id quoted so non-alphanumeric
      * characters are properly handled.
      *

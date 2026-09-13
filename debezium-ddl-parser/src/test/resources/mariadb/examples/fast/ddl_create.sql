@@ -732,3 +732,19 @@ SELECT
      ,@N_latin;
 END
 #end
+
+#begin
+CREATE TABLE `rebate_account` (
+  `id` char(36) NOT NULL,
+  `ts` timestamp(6) GENERATED ALWAYS AS ROW START,
+  `te` timestamp(6) GENERATED ALWAYS AS ROW END,
+  PRIMARY KEY (`id`,`te`),
+  PERIOD FOR SYSTEM_TIME(`ts`, `te`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci WITH SYSTEM VERSIONING;
+#end
+
+#begin
+CREATE TABLE audit_log (id INT PRIMARY KEY) WITH SYSTEM VERSIONING
+PARTITION BY SYSTEM_TIME INTERVAL 1 MONTH
+(PARTITION p_history HISTORY, PARTITION p_current CURRENT);
+#end

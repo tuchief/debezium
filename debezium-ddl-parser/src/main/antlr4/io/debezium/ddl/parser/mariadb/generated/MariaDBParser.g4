@@ -484,6 +484,7 @@ createDefinition
     : uid columnDefinition  # columnDeclaration
     | tableConstraint       # constraintDeclaration
     | indexColumnDefinition # indexDeclaration
+    | periodDefinition      # periodDeclaration
     ;
 
 columnDefinition
@@ -503,7 +504,10 @@ columnConstraint
     | STORAGE storageval = (DISK | MEMORY | DEFAULT)                             # storageColumnConstraint
     | referenceDefinition                                                        # referenceColumnConstraint
     | COLLATE collationName                                                      # collateColumnConstraint
-    | (GENERATED ALWAYS)? AS '(' expression ')' (VIRTUAL | STORED | PERSISTENT)? # generatedColumnConstraint
+    | (GENERATED ALWAYS)? AS (
+        '(' expression ')' (VIRTUAL | STORED | PERSISTENT)?
+        | ROW (START | END)
+    )                                                                            # generatedColumnConstraint
     | SERIAL DEFAULT VALUE                                                       # serialDefaultColumnConstraint
     | (CONSTRAINT name = uid?)? CHECK '(' expression ')'                         # checkColumnConstraint
     ;
@@ -534,6 +538,10 @@ referenceControlType
 indexColumnDefinition
     : indexFormat = (INDEX | KEY) uid? indexType? indexColumnNames indexOption*            # simpleIndexDeclaration
     | (FULLTEXT | SPATIAL) indexFormat = (INDEX | KEY)? uid? indexColumnNames indexOption* # specialIndexDeclaration
+    ;
+
+periodDefinition
+    : PERIOD_ADD FOR (uid | SYSTEM_USER) '(' uid ',' uid ')'
     ;
 
 tableOption
@@ -603,6 +611,17 @@ partitionFunctionDefinition
     | LINEAR? KEY (ALGORITHM '=' algType = ('1' | '2'))? '(' uidList ')' # partitionFunctionKey
     | RANGE ('(' expression ')' | COLUMNS '(' uidList ')')               # partitionFunctionRange
     | LIST ('(' expression ')' | COLUMNS '(' uidList ')')                # partitionFunctionList
+    | SYSTEM_USER (expression | LIMIT expression) (
+        STARTS (TIMESTAMP timestampValue | timestampValue)
+    )? AUTOCOMMIT? partitionSystemVersionDefinitions?                    # partitionSystemVersion
+    ;
+
+partitionSystemVersionDefinitions
+    : '(' partitionSystemVersionDefinition (',' partitionSystemVersionDefinition)* ')'
+    ;
+
+partitionSystemVersionDefinition
+    : PARTITION uid (HISTORY | CURRENT)
     ;
 
 subpartitionFunctionDefinition
@@ -2300,6 +2319,7 @@ dataType
     ) lengthOneDimension? (SIGNED | UNSIGNED | ZEROFILL)*                              # dimensionDataType
     | MARIADB_SCHEMA_DOT? typeName = REAL lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)*              # dimensionDataType
     | MARIADB_SCHEMA_DOT? typeName = DOUBLE PRECISION? lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)* # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = UUID_SHORT lengthOneDimension                                         # dimensionDataType
     | MARIADB_SCHEMA_DOT? typeName = (DECIMAL | DEC | FIXED | NUMERIC | FLOAT | FLOAT4 | FLOAT8) lengthTwoOptionalDimension? (
         SIGNED
         | UNSIGNED
@@ -2329,6 +2349,7 @@ dataType
     )                                                                                  # spatialDataType
     | MARIADB_SCHEMA_DOT? typeName = LONG VARCHAR? BINARY? (charSet charsetName)? (COLLATE collationName)? # longVarcharDataType // LONG VARCHAR is the same as LONG
     | MARIADB_SCHEMA_DOT? LONG VARBINARY                                                                   # longVarbinaryDataType
+    | UUID                                                                                                 # uuidDataType // MariaDB-specific only
     ;
 
 collectionOptions

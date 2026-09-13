@@ -53,6 +53,7 @@ import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.RelationalTableFilters;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.SchemaHistory;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.snapshot.SnapshotterService;
 import io.debezium.util.Clock;
@@ -130,7 +131,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
             try {
                 // MySQL sometimes considers some local files as databases (see DBZ-164),
                 // so we will simply try each one and ignore the problematic ones ...
-                connection.query("SHOW FULL TABLES IN " + quote(dbName) + " where Table_Type = 'BASE TABLE'", rs -> {
+                connection.query("SHOW FULL TABLES IN " + connection.quoteIdentifier(dbName) + " where Table_Type = 'BASE TABLE'", rs -> {
                     while (rs.next()) {
                         TableId id = new TableId(dbName, null, rs.getString(1));
                         tableIds.add(id);
@@ -326,7 +327,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
             if (!sourceContext.isRunning()) {
                 throw new InterruptedException("Interrupted while emitting initial DROP TABLE events");
             }
-            addSchemaEvent(snapshotContext, tableId.catalog(), "DROP TABLE IF EXISTS " + quote(tableId));
+            addSchemaEvent(snapshotContext, tableId.catalog(), "DROP TABLE IF EXISTS " + connection.quotedTableIdString(tableId));
         }
 
         final Map<String, DatabaseLocales> databaseCharsets = connection.readDatabaseCollations();
@@ -346,14 +347,14 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
                 if (!snapshottingTask.isOnDemand()) {
                     // in case of blocking snapshot we want to read structures only for collections specified in the signal
                     LOGGER.info("Reading structure of database '{}'", database);
-                    addSchemaEvent(snapshotContext, database, "DROP DATABASE IF EXISTS " + quote(database));
-                    final StringBuilder createDatabaseDdl = new StringBuilder("CREATE DATABASE " + quote(database));
+                    addSchemaEvent(snapshotContext, database, "DROP DATABASE IF EXISTS " + connection.quoteIdentifier(database));
+                    final StringBuilder createDatabaseDdl = new StringBuilder("CREATE DATABASE " + connection.quoteIdentifier(database));
                     final DatabaseLocales defaultDatabaseLocales = databaseCharsets.get(database);
                     if (defaultDatabaseLocales != null) {
                         defaultDatabaseLocales.appendToDdlStatement(database, createDatabaseDdl);
                     }
                     addSchemaEvent(snapshotContext, database, createDatabaseDdl.toString());
-                    addSchemaEvent(snapshotContext, database, "USE " + quote(database));
+                    addSchemaEvent(snapshotContext, database, "USE " + connection.quoteIdentifier(database));
                 }
 
                 if (connectorConfig.getSnapshotLockingStrategy().isLockingEnabled()) {
@@ -383,7 +384,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
                     .collect(Collectors.toList());
         }
         for (TableId tableId : realTablesToRead) {
-            connection.query("SHOW CREATE TABLE " + quote(tableId), rs -> {
+            connection.query("SHOW CREATE TABLE " + connection.quotedTableIdString(tableId), rs -> {
                 if (rs.next()) {
                     addSchemaEvent(snapshotContext, tableId.catalog(), rs.getString(2));
                 }
@@ -424,7 +425,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
             assert connection != null;
             try {
                 Map<TableId, String> result = new HashMap<>();
-                connection.query("SHOW CREATE TABLE " + quote(tableId), rs -> {
+                connection.query("SHOW CREATE TABLE " + connection.quotedTableIdString(tableId), rs -> {
                     if (rs.next()) {
                         result.put(tableId, rs.getString(2));
                     }
@@ -519,7 +520,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
         LOGGER.info("Flush and obtain read lock for {} tables (preventing writes)", snapshotContext.capturedTables);
         if (!snapshotContext.capturedTables.isEmpty()) {
             final String tableList = snapshotContext.capturedTables.stream()
-                    .map(this::quote)
+                    .map(connection::quotedTableIdString)
                     .collect(Collectors.joining(","));
             connection.executeWithoutCommitting("FLUSH TABLES " + tableList + " WITH READ LOCK");
         }
@@ -534,14 +535,6 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
         metrics.setGlobalLockReleased();
         LOGGER.info("Writes to MySQL tables prevented for a total of {}", Strings.duration(lockReleased - tableLockAcquiredAt));
         tableLockAcquiredAt = -1;
-    }
-
-    private String quote(String dbOrTableName) {
-        return "`" + dbOrTableName + "`";
-    }
-
-    private String quote(TableId id) {
-        return quote(id.catalog()) + "." + quote(id.table());
     }
 
     @Override
@@ -609,24 +602,27 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
             throws Exception {
         tryStartingSnapshot(snapshotContext);
 
-        for (final SchemaChangeEvent event : schemaEvents) {
-            if (!sourceContext.isRunning()) {
-                throw new InterruptedException("Interrupted while processing event " + event);
-            }
+        final SchemaHistory schemaHistory = databaseSchema.getSchemaHistory();
+        try (SchemaHistory.BufferingScope ignored = schemaHistory.buffering()) {
+            for (final SchemaChangeEvent event : schemaEvents) {
+                if (!sourceContext.isRunning()) {
+                    throw new InterruptedException("Interrupted while processing event " + event);
+                }
 
-            if (databaseSchema.skipSchemaChangeEvent(event)) {
-                continue;
-            }
+                if (databaseSchema.skipSchemaChangeEvent(event)) {
+                    continue;
+                }
 
-            LOGGER.debug("Processing schema event {}", event);
+                LOGGER.debug("Processing schema event {}", event);
 
-            final TableId tableId = event.getTables().isEmpty() ? null : event.getTables().iterator().next().id();
-            if (snapshottingTask.isOnDemand() && !snapshotContext.capturedTables.contains(tableId)) {
-                LOGGER.debug("Event {} will be skipped since it's not related to blocking snapshot captured table {}", event, snapshotContext.capturedTables);
-                continue;
+                final TableId tableId = event.getTables().isEmpty() ? null : event.getTables().iterator().next().id();
+                if (snapshottingTask.isOnDemand() && !snapshotContext.capturedTables.contains(tableId)) {
+                    LOGGER.debug("Event {} will be skipped since it's not related to blocking snapshot captured table {}", event, snapshotContext.capturedTables);
+                    continue;
+                }
+                snapshotContext.offset.event(tableId, getClock().currentTime());
+                dispatcher.dispatchSchemaChangeEvent(snapshotContext.partition, snapshotContext.offset, tableId, (receiver) -> receiver.schemaChangeEvent(event));
             }
-            snapshotContext.offset.event(tableId, getClock().currentTime());
-            dispatcher.dispatchSchemaChangeEvent(snapshotContext.partition, snapshotContext.offset, tableId, (receiver) -> receiver.schemaChangeEvent(event));
         }
 
         // Make schema available for snapshot source

@@ -8,9 +8,9 @@ package io.debezium.connector.mariadb;
 import static io.debezium.connector.binlog.BinlogConnectorConfig.TOPIC_NAMING_STRATEGY;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
@@ -269,7 +269,15 @@ public class MariaDbConnectorTask extends BinlogSourceTask<MariaDbPartition, Mar
     @Override
     protected List<SourceRecord> doPoll() throws InterruptedException {
         final List<DataChangeEvent> records = queue.poll();
-        return records.stream().map(DataChangeEvent::getRecord).collect(Collectors.toList());
+        return toSourceRecords(records);
+    }
+
+    static List<SourceRecord> toSourceRecords(List<DataChangeEvent> records) {
+        final List<SourceRecord> sourceRecords = new ArrayList<>(records.size());
+        for (final DataChangeEvent record : records) {
+            sourceRecords.add(record.getRecord());
+        }
+        return sourceRecords;
     }
 
     @Override

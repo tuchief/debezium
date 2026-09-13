@@ -157,6 +157,70 @@ public class MariaDbAntlrDdlParserTest extends BinlogAntlrDdlParserTest<MariaDbV
     }
 
     @Test
+    public void shouldParseSystemVersionedTableWithExplicitPeriod() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener());
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE rebate_account (" +
+                "id CHAR(36) NOT NULL," +
+                "row_start TIMESTAMP(6) GENERATED ALWAYS AS ROW START," +
+                "row_end TIMESTAMP(6) GENERATED ALWAYS AS ROW END," +
+                "PRIMARY KEY (id, row_end)," +
+                "PERIOD FOR SYSTEM_TIME(row_start, row_end)" +
+                ") WITH SYSTEM VERSIONING", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "rebate_account"));
+        assertThat(table).isNotNull();
+        assertThat(table.attributeWithName(MariaDbAntlrDdlParser.SYSTEM_VERSIONED_TABLE_ATTRIBUTE).asBoolean()).isTrue();
+        assertThat(table.columnWithName("row_start")).isNotNull();
+        assertThat(table.columnWithName("row_end")).isNotNull();
+        assertThat(table.primaryKeyColumnNames()).containsExactly("id", "row_end");
+    }
+
+    @Test
+    public void shouldParseSystemTimePartitioning() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener());
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE audit_log (id INT PRIMARY KEY) WITH SYSTEM VERSIONING " +
+                "PARTITION BY SYSTEM_TIME INTERVAL 1 MONTH " +
+                "(PARTITION p_history HISTORY, PARTITION p_current CURRENT)", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "audit_log"));
+        assertThat(table).isNotNull();
+        assertThat(table.attributeWithName(MariaDbAntlrDdlParser.SYSTEM_VERSIONED_TABLE_ATTRIBUTE).asBoolean()).isTrue();
+    }
+
+    @Test
+    public void shouldParseUuidColumn() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener());
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE t_uuid (id UUID NOT NULL PRIMARY KEY)", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "t_uuid"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("id").typeName()).isEqualTo("UUID");
+    }
+
+    @Test
+    public void shouldParseVectorColumn() {
+        final MariaDbAntlrDdlParser parser = getParser(new SimpleDdlParserListener());
+        final Tables tables = new Tables();
+
+        parser.parse("CREATE TABLE t_vector (id INT PRIMARY KEY, embedding vector(3))", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        final Table table = tables.forTable(new TableId(null, null, "t_vector"));
+        assertThat(table).isNotNull();
+        assertThat(table.columnWithName("embedding").typeName()).isEqualTo("VECTOR");
+        assertThat(table.columnWithName("embedding").length()).isEqualTo(3);
+    }
+
+    @Test
     public void shouldRemoveColumnWhenDropColumnUsesCascade() {
         final SimpleDdlParserListener listener = new SimpleDdlParserListener();
         final MariaDbAntlrDdlParser parser = getParser(listener);
