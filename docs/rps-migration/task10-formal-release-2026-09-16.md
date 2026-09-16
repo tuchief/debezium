@@ -10,7 +10,10 @@ Repository: `http://10.169.190.188:18587/repository/maven-releases/`
   from commit `097cef8` on `upgrade/mysql-binlog-0.41-rps`.
 - Debezium runtime: `3.6.2-20260916.Final` from commit `c57e1e04b9`
   on `upgrade/debezium-3.6-rps`.
-- Consumer BOM: `io.debezium:debezium-rps-bom:3.6.2-20260916.Final`.
+- Superseded initial BOM:
+  `io.debezium:debezium-rps-bom:3.6.2-20260916.Final`.
+- Active consumer BOM:
+  `io.debezium:debezium-rps-custom-bom:3.6.2-20260916.Final`.
 
 All 44 intended main JAR/POM paths returned HTTP 404 before publication.
 
@@ -33,15 +36,24 @@ failed because downstream modules require upstream test JARs. The successful
 command used `skipTests`, which compiles/packages test JARs without re-running
 tests.
 
-## Locked BOM behavior
+## Corrected selective BOM behavior
 
-The RPS BOM imports upstream `io.debezium:debezium-bom:3.6.2.Final`, then
-overrides only the internal runtime closure. Effective-POM verification showed:
+The initial RPS BOM incorrectly overrode unchanged Debezium runtime artifacts
+with the dated internal version. It remains immutable in Nexus but is
+deprecated and must not be imported.
 
-- client, connector-common, MySQL, MariaDB, and Oracle resolve to their dated
-  internal versions;
-- PostgreSQL and SQL Server remain at upstream `3.6.2.Final`;
-- no `SNAPSHOT`, `rps.1`, or Debezium `3.0.3` coordinate is present.
+The active `debezium-rps-custom-bom` imports upstream
+`io.debezium:debezium-bom:3.6.2.Final` and overrides exactly seven artifacts:
+
+- `dataknown-mysql-binlog-connector-java:0.41.2-20260916.Final`;
+- `debezium-connector-common`, `debezium-ddl-parser`,
+  `debezium-connector-binlog`, `debezium-connector-mysql`,
+  `debezium-connector-mariadb`, and `debezium-connector-oracle` at
+  `3.6.2-20260916.Final`.
+
+API, util, config, embedded, connect-plugins, storage, PostgreSQL, DB2, SQL
+Server, and IBM i remain at official `3.6.2.Final`. The effective BOM and the
+RPS dependency tree independently confirmed this split.
 
 ## Published and independently downloaded assets
 
@@ -55,9 +67,14 @@ matched their local SHA-256 values:
 | client sources | `53a6aa2c82ad04641d554cbe508e60ca85616afcad3de1777d4f9e3e7e2539c4` |
 | client javadoc | `6c99bda525577380463409f67b666e266537ce04cee9f4a86eacd976c2302432` |
 
-Twenty-one Debezium components were published with POM metadata. All were
+Twenty-one Debezium components were initially published with POM metadata. All were
 downloaded independently and matched local SHA-256. POM-only components also
 verified that the main JAR remains HTTP 404.
+
+This table is retained as publication history. Only connector-common,
+ddl-parser, binlog, MySQL, MariaDB, and Oracle are active dated Debezium JARs.
+The other dated assets are deprecated and unused; they were not deleted or
+overwritten.
 
 | Component | Packaging | Main SHA-256 |
 | --- | --- | --- |
@@ -83,34 +100,43 @@ verified that the main JAR remains HTTP 404.
 | `debezium-connector-oracle` | JAR | `d167cf7aabc3821659d89146d6400c88edd329118e7769deed99fb1a01655b9f` |
 | `debezium-connector-mariadb` | JAR | `558677291b4aac31bb732348b21a0790e976b475139ac91b68d2ff3c29df9e03` |
 
+The corrected POM-only BOM was published separately and verified by an
+independent download:
+
+| Component | Packaging | Main SHA-256 |
+| --- | --- | --- |
+| `debezium-rps-custom-bom` | POM | `6650fcf115d71e4d4872ba2015c88ec66e8a1a0ab7faf5ae19c4bea241ad9388` |
+
+Its POM returned HTTP 200, matched the source byte-for-byte, and its nonexistent
+JAR path returned HTTP 404.
+
 The failed anonymous client upload and the first POM-only command produced no
 assets. Credentials were supplied only through permission-restricted temporary
 settings files, removed after each command; no credential was written to either
 repository or the user Maven settings.
 
-## RPS develop alignment
+## Corrected RPS develop alignment
 
-RPS `develop` commit `f9c94346eb` imports
-`io.debezium:debezium-rps-bom:3.6.2-20260916.Final` and removes the former
-per-artifact RPS Debezium pins and connector exclusions. Its resolved runtime
-contains:
+RPS `develop` corrective commit `bbee51a785` imports
+`io.debezium:debezium-rps-custom-bom:3.6.2-20260916.Final`. Its resolved
+runtime contains:
 
-- the dated internal MySQL, MariaDB, Oracle, embedded, storage, parser, and
-  shared components at `3.6.2-20260916.Final`;
+- only the six changed Debezium modules at `3.6.2-20260916.Final`;
 - `dataknown-mysql-binlog-connector-java:0.41.2-20260916.Final` exactly once;
-- unmodified PostgreSQL, DB2, and SQL Server connectors at upstream
-  `3.6.2.Final`;
+- all unchanged Debezium components at official `3.6.2.Final`;
+- official `debezium-connector-ibmi`, `ibmi-journal-parsing`, and
+  `jt400-override-ccsid` at `3.6.2.Final`;
 - Kafka Connect artifacts converged to RPS-managed `3.7.0`;
 - one Oracle connector coordinate, `io.debezium:debezium-connector-oracle`.
 
-The independently sourced AS400 RPC connector remains an explicit exception:
-`io.debezium.connector.db2as400:ibmi-jdbc`, `ibmi-journal-parsing`, and its
-CCSID helper remain at `3.0.3.Final`. Nexus has no 3.6 build of the RPC
-connector, and RPS instantiates its non-upstream
-`io.debezium.connector.db2as400.As400RpcConnector` class. It has no POM and
-therefore cannot pull an old Debezium core transitively. Migrating that product
-requires a separate source-compatible AS400 release and acceptance environment.
+The IBM i release comes from Maven Central through the company
+`maven-public` group; it is not republished as an internal dated build. The
+machine's default Maven global settings incorrectly mirror all repositories to
+the hosted `maven-releases` repository, which cannot proxy Central. The clean
+verification therefore used a temporary settings file pointing `mirrorOf=*`
+to `maven-public`; the temporary file was removed afterward.
 
-`mvn clean package -DskipTests -DskipITs` under JDK 17 completed successfully
-for all five RPS reactor modules. Test sources compiled, but tests were
-explicitly skipped; this is clean build evidence, not an RPS runtime test pass.
+Under that correct repository route, JDK 17 `mvn -U clean package -DskipTests
+-DskipITs` completed successfully for all five RPS reactor modules. Test
+sources compiled, but tests were explicitly skipped; this is clean build
+evidence, not an RPS runtime test pass.

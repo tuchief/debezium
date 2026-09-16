@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.debezium</groupId>
-    <artifactId>debezium-rps-bom</artifactId>
+    <artifactId>debezium-rps-custom-bom</artifactId>
     <version>3.6.2-20260916.Final</version>
     <packaging>pom</packaging>
 
-    <name>Debezium RPS BOM</name>
-    <description>Locks the Debezium runtime validated for RPS while retaining upstream versions for unmodified connectors.</description>
+    <name>Debezium RPS Custom BOM</name>
+    <description>Overrides only Debezium components whose production code is customized for RPS.</description>
 
     <properties>
         <debezium.upstream.version>3.6.2.Final</debezium.upstream.version>
@@ -35,53 +35,7 @@
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
-                <artifactId>debezium-util</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-api</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-config</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-openlineage-api</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-common</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-core</artifactId>
-                <version>${debezium.rps.version}</version>
-                <type>pom</type>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-embedded</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-connect-plugins</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-storage-file</artifactId>
-                <version>${debezium.rps.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-storage-kafka</artifactId>
                 <version>${debezium.rps.version}</version>
             </dependency>
             <dependency>

@@ -204,7 +204,7 @@
 
     <modules>
         <module>debezium-bom</module>
-        <module>debezium-rps-bom</module>
+        <module>debezium-rps-custom-bom</module>
         <module>debezium-parent</module>
         <module>support/checkstyle</module>
         <module>support/ide-configs</module>
