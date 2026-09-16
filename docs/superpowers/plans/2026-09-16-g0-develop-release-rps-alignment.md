@@ -69,9 +69,12 @@ worktrees remain in place on their upgrade branches.
 
 - [x] **Step 1: Select unused formal coordinates and verify HTTP 404 for every intended asset before upload.**
 - [x] **Step 2: Pin the complete custom dependency graph and add the internal BOM with explicit component versions.**
-- [ ] **Step 3: Build and test with the approved JDKs; record executed and skipped checks separately.**
-- [ ] **Step 4: Publish client first, then Debezium components and BOM with POM metadata.**
-- [ ] **Step 5: Download every published JAR/POM, require HTTP 200 and matching SHA-256, and record asset metadata.**
+- [x] **Step 3: Build and test with the approved JDKs; record executed and skipped checks separately.**
+- [x] **Step 4: Publish client first, then Debezium components and BOM with POM metadata.**
+- [x] **Step 5: Download every published JAR/POM, require HTTP 200 and matching SHA-256, and record asset metadata.**
+
+Publication evidence is recorded in
+`docs/rps-migration/task10-formal-release-2026-09-16.md`.
 
 ### Task 4: Align RPS develop and verify convergence
 
