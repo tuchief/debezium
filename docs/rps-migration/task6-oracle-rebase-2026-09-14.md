@@ -2,10 +2,11 @@
 
 Date: 2026-09-14
 
-Status: implementation complete with direct Oracle 10g, Oracle 11g, and
-two-node RAC LogMiner row-path acceptance. Full embedded-engine continuation,
-RPS filter acceptance, RAC failover, and RAW/HEXTORAW remain open. No commit,
-push, publication, RPS dependency change, or deployment was performed.
+Final status: implementation, direct Oracle 10g/11g and two-node RAC LogMiner
+row-path acceptance, commit, dated publication, and RPS dependency alignment
+complete. Full embedded-engine continuation, RPS filtering, RAC failover, and
+RAW/HEXTORAW are transferred to product test regression. No production
+deployment was performed by this source-migration task.
 
 ## Scope
 
@@ -95,7 +96,10 @@ counted mandatory `TX_NAME` as an optional resolver. The implementation was
 corrected to retain the 3.6 optional-resolver invariant, and the full suite
 then passed.
 
-## Open acceptance gates
+## Product regression handoff
+
+The following live/RPS scenarios are assigned to product test regression and
+do not block closure of the source migration.
 
 1. Run an actual `SET TRANSACTION NAME 'RPS_ORIGIN'` transaction and prove the
    emitted record contains `source.txName=RPS_ORIGIN` and the RPS consumer

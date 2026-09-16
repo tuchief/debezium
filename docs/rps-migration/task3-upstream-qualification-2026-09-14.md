@@ -20,7 +20,7 @@ Docker, failover, or performance gate.
 | Connector poll batch conversion | `UPSTREAM_UNIT_CONFIRMED` | `BaseSourceTaskTest.shouldConvertPolledEventsInOrderToMutableList` passed | Connector throughput and allocation comparison |
 | UUID and VECTOR | `UPSTREAM_INTEGRATION_CONFIRMED` | MariaDB 11.8.9 `UuidColumnIT` and both `MariaVectorIT` scenarios passed | None for source-port decision |
 | Kafka Schema History concurrent recovery and producer buffering | `UPSTREAM_INTEGRATION_CONFIRMED` | Real Kafka concurrent recovery plus 4 buffering regression tests passed | Old-state restart remains a release gate |
-| Snapshot failure preservation while draining Schema History | `REBASE_IMPLEMENTED_UNCOMMITTED` | RED: missing `BufferingScope`/`buffering()`; GREEN: 2 exception-semantics tests passed | Full continuation test remains a release gate |
+| Snapshot failure preservation while draining Schema History | `REBASE_IMPLEMENTED_RELEASED` | RED: missing `BufferingScope`/`buffering()`; GREEN: 2 exception-semantics tests passed | Full continuation transferred to product regression |
 | Extended system-versioned table coverage | `UPSTREAM_INTEGRATION_CONFIRMED` | MariaDB 11.8.9 snapshot and streaming IT passed | Implicit hidden-column variant remains a release gate |
 
 Focused Maven runs execute selected tests in both the normal and ArchUnit

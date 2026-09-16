@@ -67,7 +67,10 @@ https://dev.mysql.com/doc/dev/mysql-server/8.0.46/classbinary__log_1_1Query__eve
 - DDL parser and binlog artifacts were installed locally as uncommitted
   `3.6.2.Final` builds so downstream module tests used the current worktree.
 
-## Remaining acceptance boundary
+## Product regression handoff
+
+The following live/site scenarios are assigned to product test regression and
+do not block closure of the source migration.
 
 No GoldenDB environment was used in this phase. Site acceptance must still
 prove that GoldenDB writes the RPS numeric origin identifier as

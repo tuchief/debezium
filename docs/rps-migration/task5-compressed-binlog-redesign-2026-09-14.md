@@ -2,6 +2,11 @@
 
 Date: 2026-09-14
 
+Final disposition on 2026-09-16: implementation and release complete. Live
+vendor-emitted V2 event types 169-171 are `WAIVED_FOR_3_6_2_UPGRADE`; this is
+not a claim that live V2 passed. Reopen only if a supported environment emits
+those event types or supplies a captured fixture.
+
 Debezium target: `v3.6.2.Final` at
 `02810e25b19c04e5095b2b6fbbdcbae549a69f19`.
 
@@ -82,9 +87,11 @@ and MariaDB 11.8.9 `sql/log_event.cc`.
   `dataknown-mysql-binlog-connector-java:0.41.2-rps.1-SNAPSHOT` for the binlog,
   MySQL, and MariaDB modules.
 
-## Remaining acceptance boundary
+## Historical acceptance boundary and final disposition
 
-The dependency is a local SNAPSHOT and has not been committed or published.
+At the original checkpoint, the dependency was a local SNAPSHOT and had not
+been committed or published. The final dated release is recorded in
+`task10-formal-release-2026-09-16.md`.
 MariaDB 10.6 and 11.4.3 exercised V1 compressed row events; V2 reconstruction
 has exact byte-level unit coverage but still needs a real server/binlog fixture
 that emits event types 169-171. GoldenDB numeric `lc_time_names` on a compressed
@@ -118,7 +125,8 @@ change.
 This closes real MariaDB V1 compression through the same replica-binlog path
 used by replica-only CDC. It confirms that this environment does not provide
 real V2 evidence; 169-171 remain byte-fixture-only until a server or captured
-binlog that emits those event types is supplied.
+binlog that emits those event types is supplied. The missing live V2 fixture is
+explicitly waived for this upgrade under the final disposition above.
 
 ## MySQL 8.4.12 amd64 integration acceptance
 

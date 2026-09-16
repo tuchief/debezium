@@ -46,12 +46,12 @@
 
 **Interfaces:**
 - Consumes: closed G0 and the verified uncommitted worktrees.
-- Produces: commits on client `upgrade/mysql-binlog-0.41-rps` and Debezium `upgrade/debezium-3.6-rps` with clean task-owned diffs.
+- Produces: commits on client `upgrade/mysql-binlog-0.41-rps` and Debezium `upgrade/debezium-3.6.2-rps` with clean task-owned diffs.
 
 - [x] **Step 1: Fetch remotes, verify merge bases, and ensure target develop heads have not changed during validation.**
 - [x] **Step 2: Run the full approved client and affected Debezium verification suites on the exact trees to be committed.**
 - [x] **Step 3: Commit the client changes on `upgrade/mysql-binlog-0.41-rps` and verify the committed tree.**
-- [x] **Step 4: Commit the Debezium changes on `upgrade/debezium-3.6-rps`, preserving the exact `v3.6.2.Final` base, and verify the committed tree.**
+- [x] **Step 4: Commit the Debezium changes on `upgrade/debezium-3.6.2-rps`, preserving the exact `v3.6.2.Final` base, and verify the committed tree.**
 - [x] **Step 5: Record commit IDs and preserve the host-managed worktrees.**
 
 Implementation commits: client `9e3a4c08b2` plus release version commit

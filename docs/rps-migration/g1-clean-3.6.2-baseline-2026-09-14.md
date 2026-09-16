@@ -3,7 +3,7 @@
 ## Scope
 
 - Worktree: `/Users/tuchief/workspace/debezium-3.6-rps`
-- Branch: `upgrade/debezium-3.6-rps`
+- Branch: `upgrade/debezium-3.6.2-rps`
 - Upstream baseline: `v3.6.2.Final`
 - Commit: `02810e25b19c04e5095b2b6fbbdcbae549a69f19`
 - JDK: Azul Zulu 21.0.12.1

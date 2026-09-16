@@ -58,7 +58,10 @@ lexer tokens changed token-set text in existing expected-error snapshots. The
 affected `.errors` files were updated mechanically, and only the final complete
 QA run is considered passing evidence.
 
-## Remaining acceptance boundary
+## Product regression handoff
+
+The following live/site scenarios are assigned to product test regression and
+do not block closure of the source migration.
 
 These are parser-level results. GoldenDB/TDSQL binlog capture and RPS DDL replay
 still require a real database or captured customer binlog event carrying each

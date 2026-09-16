@@ -50,7 +50,10 @@ The unrelated skip-unparseable-DDL logging changes bundled in historical commit
   completed snapshot and streaming UPDATE, 2 tests with no failure, error, or
   skip. The container was stopped and removed.
 
-## Remaining acceptance boundary
+## Product regression handoff
+
+The following live/site scenarios are assigned to product test regression and
+do not block closure of the source migration.
 
 Schema-qualified Oracle-mode types, partition-count DDL, DROP CASCADE, and
 COMMENT ON COLUMN still require GoldenDB/TDSQL/MariaDB site SQL or captured

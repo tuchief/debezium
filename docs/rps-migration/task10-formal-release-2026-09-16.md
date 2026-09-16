@@ -9,7 +9,7 @@ Repository: `http://10.169.190.188:18587/repository/maven-releases/`
 - Client: `io.debezium:dataknown-mysql-binlog-connector-java:0.41.2-20260916.Final`
   from commit `097cef8` on `upgrade/mysql-binlog-0.41-rps`.
 - Debezium runtime: `3.6.2-20260916.Final` from commit `c57e1e04b9`
-  on `upgrade/debezium-3.6-rps`.
+  on `upgrade/debezium-3.6.2-rps`.
 - Superseded initial BOM:
   `io.debezium:debezium-rps-bom:3.6.2-20260916.Final`.
 - Active consumer BOM:
@@ -161,3 +161,11 @@ Under that correct repository route, JDK 17 `mvn -U clean package -DskipTests
 -DskipITs` completed successfully for all five RPS reactor modules. Test
 sources compiled, but tests were explicitly skipped; this is clean build
 evidence, not an RPS runtime test pass.
+
+## Upgrade closure
+
+The source migration and release scope is closed by
+`upgrade-closure-2026-09-16.md`. Old-state continuation, three RPS task types,
+and canary/performance/failure/rollback work are transferred to product test
+regression. Live MariaDB V2 event types 169-171 are explicitly waived for this
+upgrade without being reported as passed.

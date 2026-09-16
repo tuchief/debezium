@@ -2,9 +2,10 @@
 
 Date: 2026-09-15
 
-Status: implementation and non-Docker module qualification complete; changes
-remain uncommitted. No publication, RPS dependency change, deployment, or live
-failure injection was performed.
+Final status: implementation, qualification, commit, dated publication, and
+RPS dependency alignment complete. Live failure injection, packaged log
+routing, throughput, and allocation comparison are transferred to product
+test regression.
 
 ## Scope and decision
 
@@ -20,8 +21,9 @@ the required behavior:
 - restart loading did not reconcile legacy seconds with the new milliseconds
   field or prevent timestamp regression.
 
-Both inventory records are therefore `REBASE_IMPLEMENTED_UNCOMMITTED`, not
-`UPSTREAM` and not direct cherry-picks. The old `debezium-core` locations were
+Both inventory records were classified as implemented but unreleased at that
+checkpoint, not `UPSTREAM` and not direct cherry-picks. Their final disposition
+is `REBASE_IMPLEMENTED_RELEASED`. The old `debezium-core` locations were
 mapped to `debezium-connector-common` in 3.6.
 
 ## Implemented behavior
@@ -86,7 +88,10 @@ Fresh full non-Docker module results:
 - MySQL: 397 tests, 0 failures, 0 errors, 4 skips, plus 2 architecture tests;
 - MariaDB: 323 tests, 0 failures, 0 errors, 0 skips, plus 2 architecture tests.
 
-## Remaining gates
+## Product regression handoff
+
+The following packaged-runtime scenarios are assigned to product test
+regression and do not block closure of the source migration.
 
 - Run controlled live conversion, unknown-table, and malformed-DDL injection
   without exposing business row values.
