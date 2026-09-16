@@ -14,6 +14,7 @@ Repository: `http://10.169.190.188:18587/repository/maven-releases/`
   `io.debezium:debezium-rps-bom:3.6.2-20260916.Final`.
 - Active consumer BOM:
   `io.debezium:debezium-rps-custom-bom:3.6.2-20260916.Final`.
+  Its functional source commit is `67e6f9c330`.
 
 All 44 intended main JAR/POM paths returned HTTP 404 before publication.
 

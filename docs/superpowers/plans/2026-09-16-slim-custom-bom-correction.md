@@ -76,6 +76,12 @@
 
 - [x] **Step 1: Run the complete RPS JDK 17 `clean package` with test execution status reported exactly.**
 - [x] **Step 2: Review task-owned diffs and run `git diff --check` in both repositories.**
-- [ ] **Step 3: Commit the corrected BOM and release evidence on the Debezium upgrade branch.**
-- [ ] **Step 4: Commit only the RPS root POM on `develop` and record both commit IDs.**
-- [ ] **Step 5: Re-run final repository, Nexus, and dependency-tree verification from the committed revisions.**
+- [x] **Step 3: Commit the corrected BOM and release evidence on the Debezium upgrade branch.**
+- [x] **Step 4: Commit only the RPS root POM on `develop` and record both commit IDs.**
+- [x] **Step 5: Re-run final repository, Nexus, and dependency-tree verification from the committed revisions.**
+
+Functional commits: Debezium `67e6f9c330`; RPS `bbee51a785`. Final committed
+revision verification confirmed the seven-coordinate custom set, official
+`3.6.2.Final` for every unchanged component, Nexus POM HTTP 200 with SHA-256
+`6650fcf115d71e4d4872ba2015c88ec66e8a1a0ab7faf5ae19c4bea241ad9388`,
+and all five RPS modules building successfully under JDK 17 with tests skipped.
