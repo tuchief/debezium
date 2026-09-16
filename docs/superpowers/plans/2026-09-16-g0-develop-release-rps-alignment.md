@@ -14,7 +14,7 @@
 
 - Preserve unrelated dirty and untracked files in every repository.
 - Never force-push or overwrite an existing Nexus release coordinate.
-- Use a fixed non-SNAPSHOT client coordinate, fixed Debezium coordinate, and an internal BOM with POM metadata.
+- Use fixed date-formatted coordinates `0.41.2-20260916.Final` and `3.6.2-20260916.Final`, plus an internal BOM with POM metadata.
 - Verify uploaded assets by HTTP status and SHA-256 before changing RPS.
 - Change only Debezium dependency declarations on RPS `develop`; reject residual Debezium 3.0.3 and duplicate client/Kafka Connect versions.
 - Do not call package success a test pass when tests were skipped.
@@ -46,11 +46,15 @@
 - Consumes: closed G0 and the verified uncommitted worktrees.
 - Produces: commits on client `upgrade/mysql-binlog-0.41-rps` and Debezium `upgrade/debezium-3.6-rps` with clean task-owned diffs.
 
-- [ ] **Step 1: Fetch remotes, verify merge bases, and ensure target develop heads have not changed during validation.**
-- [ ] **Step 2: Run the full approved client and affected Debezium verification suites on the exact trees to be committed.**
-- [ ] **Step 3: Commit the client changes on `upgrade/mysql-binlog-0.41-rps` and verify the committed tree.**
-- [ ] **Step 4: Commit the Debezium changes on `upgrade/debezium-3.6-rps`, preserving the exact `v3.6.2.Final` base, and verify the committed tree.**
-- [ ] **Step 5: Record commit IDs and preserve the host-managed worktrees.**
+- [x] **Step 1: Fetch remotes, verify merge bases, and ensure target develop heads have not changed during validation.**
+- [x] **Step 2: Run the full approved client and affected Debezium verification suites on the exact trees to be committed.**
+- [x] **Step 3: Commit the client changes on `upgrade/mysql-binlog-0.41-rps` and verify the committed tree.**
+- [x] **Step 4: Commit the Debezium changes on `upgrade/debezium-3.6-rps`, preserving the exact `v3.6.2.Final` base, and verify the committed tree.**
+- [x] **Step 5: Record commit IDs and preserve the host-managed worktrees.**
+
+Implementation commits: client `9e3a4c08b2` plus release version commit
+`097cef8`; Debezium customization commit `6124e4fba9`. Both host-managed
+worktrees remain in place on their upgrade branches.
 
 ### Task 3: Lock and publish formal artifacts
 
@@ -61,10 +65,10 @@
 
 **Interfaces:**
 - Consumes: immutable develop commits from Task 2.
-- Produces: non-SNAPSHOT client, Debezium component set, and BOM coordinates verified in Nexus.
+- Produces: client `0.41.2-20260916.Final`, Debezium component set and BOM `3.6.2-20260916.Final`, verified in Nexus.
 
-- [ ] **Step 1: Select unused formal coordinates and verify HTTP 404 for every intended asset before upload.**
-- [ ] **Step 2: Pin the complete custom dependency graph and add the internal BOM with explicit component versions.**
+- [x] **Step 1: Select unused formal coordinates and verify HTTP 404 for every intended asset before upload.**
+- [x] **Step 2: Pin the complete custom dependency graph and add the internal BOM with explicit component versions.**
 - [ ] **Step 3: Build and test with the approved JDKs; record executed and skipped checks separately.**
 - [ ] **Step 4: Publish client first, then Debezium components and BOM with POM metadata.**
 - [ ] **Step 5: Download every published JAR/POM, require HTTP 200 and matching SHA-256, and record asset metadata.**
