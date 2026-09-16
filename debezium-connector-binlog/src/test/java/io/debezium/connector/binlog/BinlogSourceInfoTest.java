@@ -6,6 +6,7 @@
 package io.debezium.connector.binlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.apache.kafka.connect.data.Schema;
@@ -24,7 +26,12 @@ import org.assertj.core.api.AbstractAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.github.shyiko.mysql.binlog.event.Event;
+import com.github.shyiko.mysql.binlog.event.EventHeaderV4;
+import com.github.shyiko.mysql.binlog.event.EventType;
+
 import io.confluent.connect.avro.AvroData;
+import io.debezium.DebeziumException;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.binlog.history.BinlogHistoryRecordComparator;
@@ -652,6 +659,63 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
     }
 
     @Test
+    void shouldStoreLastBinlogEventTimestampInOffset() {
+        offsetContext.recordBinlogEvent(EventType.WRITE_ROWS, 1_024_567L);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(1_024_567L);
+    }
+
+    @Test
+    void shouldIgnoreHeartbeatZeroAndRegressingBinlogTimestamps() {
+        offsetContext.recordBinlogEvent(EventType.WRITE_ROWS, 2_048_123L);
+        offsetContext.recordBinlogEvent(EventType.HEARTBEAT, 4_096_000L);
+        offsetContext.recordBinlogEvent(EventType.QUERY, 0L);
+        offsetContext.recordBinlogEvent(EventType.QUERY, 1_024_567L);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_123L);
+    }
+
+    @Test
+    void shouldRecordLastBinlogEventTimestampBeforeRoutingEvent() {
+        final EventHeaderV4 header = new EventHeaderV4();
+        header.setEventType(EventType.QUERY);
+        header.setTimestamp(2_048_123L);
+        final AtomicReference<Object> timestampSeenByDelegate = new AtomicReference<>();
+
+        BinlogStreamingChangeEventSource.trackBinlogEventTimestamp(offsetContext,
+                event -> timestampSeenByDelegate.set(offsetContext.getOffset()
+                        .get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY)))
+                .onEvent(new Event(header, null));
+
+        assertThat(timestampSeenByDelegate).hasValue(2_048_123L);
+    }
+
+    @Test
+    void shouldRecoverNewestTimestampFromLegacyAndNewOffsetFields() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "2048");
+        storedOffset.put(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY, "1024567");
+
+        sourceWith(storedOffset);
+
+        assertThat(offsetContext.getOffset().get(BinlogOffsetContext.LAST_BINLOG_EVENT_TIMESTAMP_KEY))
+                .isEqualTo(2_048_000L);
+    }
+
+    @Test
+    void shouldRejectLegacyTimestampOutsideMillisecondRange() {
+        final Map<String, String> storedOffset = offset(100, 5);
+        storedOffset.put(BinlogOffsetContext.TIMESTAMP_KEY, "9223372036854776");
+
+        assertThatThrownBy(() -> sourceWith(storedOffset))
+                .isInstanceOf(DebeziumException.class)
+                .hasMessageContaining(BinlogOffsetContext.TIMESTAMP_KEY)
+                .hasMessageContaining("9223372036854776");
+    }
+
+    @Test
     void versionIsPresent() {
         sourceWith(offset(100, 5, true));
         source.databaseEvent("mysql");
@@ -663,6 +727,15 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
         sourceWith(offset(100, 5, true));
         source.databaseEvent("mysql");
         assertThat(source.struct().getString(BinlogSourceInfo.DEBEZIUM_CONNECTOR_KEY)).isEqualTo(getModuleName());
+    }
+
+    @Test
+    void shouldExposeLcTimeNamesInSourceStruct() {
+        source.setLcTimeNames("1024");
+        assertThat(source.struct().getString(BinlogSourceInfo.LC_TIME_NAMES_KEY)).isEqualTo("1024");
+
+        source.setLcTimeNames(null);
+        assertThat(source.struct().getString(BinlogSourceInfo.LC_TIME_NAMES_KEY)).isNull();
     }
 
     @Test
@@ -687,6 +760,7 @@ public abstract class BinlogSourceInfoTest<S extends BinlogSourceInfo, O extends
                 .field("row", Schema.INT32_SCHEMA)
                 .field("thread", Schema.OPTIONAL_INT64_SCHEMA)
                 .field("query", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("lc_time", Schema.OPTIONAL_STRING_SCHEMA)
                 .build();
         VerifyRecord.assertConnectSchemasAreEqual(null, source.schema(), schema);
     }

@@ -619,8 +619,7 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
         tryStartingSnapshot(snapshotContext);
 
         final SchemaHistory schemaHistory = databaseSchema.getSchemaHistory();
-        schemaHistory.startBuffering();
-        try {
+        try (SchemaHistory.BufferingScope ignored = schemaHistory.buffering()) {
             for (final SchemaChangeEvent event : schemaEvents) {
                 if (!sourceContext.isRunning()) {
                     throw new InterruptedException("Interrupted while processing event " + event);
@@ -640,9 +639,6 @@ public abstract class BinlogSnapshotChangeEventSource<P extends BinlogPartition,
                 snapshotContext.offset.event(tableId, getClock().currentTime());
                 dispatcher.dispatchSchemaChangeEvent(snapshotContext.partition, snapshotContext.offset, tableId, (receiver) -> receiver.schemaChangeEvent(event));
             }
-        }
-        finally {
-            schemaHistory.stopBuffering();
         }
 
         // Make schema available for snapshot source

@@ -92,6 +92,16 @@ public class LogMinerColumnIndexesTest {
     }
 
     @Test
+    void unavailableClientIdColumnShouldBeExcludedDespiteDefaultTrackingConfiguration() {
+        final OracleConnectorConfig config = new OracleConnectorConfig(TestHelper.defaultConfig().build());
+
+        final LogMinerColumnIndexes idx = LogMinerColumnIndexes.fromConfig(config, false);
+
+        assertThat(idx.getClientIdIndex()).isNull();
+        assertThat(idx.getTransactionNameIndex()).isEqualTo(26);
+    }
+
+    @Test
     void startTimestampDisabledShouldShiftCommitTimestampAndSequence() {
         LogMinerColumnIndexes idx = fromConfig(OracleConnectorConfig.LOG_MINING_BUFFER_TRACK_START_TIMESTAMP, false);
 

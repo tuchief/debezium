@@ -265,4 +265,19 @@ public interface SchemaHistory {
      */
     default void stopBuffering() {
     }
+
+    /**
+     * Starts buffering and returns a scope suitable for try-with-resources. If both the scoped
+     * operation and the final drain fail, the drain failure is retained as a suppressed exception.
+     */
+    default BufferingScope buffering() {
+        startBuffering();
+        return this::stopBuffering;
+    }
+
+    @FunctionalInterface
+    interface BufferingScope extends AutoCloseable {
+        @Override
+        void close();
+    }
 }

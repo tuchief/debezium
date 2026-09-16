@@ -24,6 +24,7 @@ import io.debezium.connector.binlog.jdbc.BinlogSystemVariables;
 import io.debezium.connector.binlog.util.TestHelper;
 import io.debezium.connector.binlog.util.UniqueDatabase;
 import io.debezium.doc.FixFor;
+import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Offsets;
 import io.debezium.relational.Table;
@@ -100,6 +101,23 @@ public abstract class BinlogDatabaseSchemaTest<C extends BinlogConnectorConfig, 
         assertTableIncluded("connector_test.customers");
         assertTableIncluded("connector_test.orders");
         assertHistoryRecorded(config, partition, offset);
+    }
+
+    @Test
+    void shouldLogReceivedAndParsedOutcomeForStreamingDdl() {
+        final Configuration config = DATABASE.defaultConfig().build();
+        schema = getSchema(config);
+        schema.initializeStorage();
+        final LogInterceptor logInterceptor = new LogInterceptor(IncrementalDdlLogger.LOGGER_NAME);
+        final P partition = initializePartition(connectorConfig, config);
+        final O offset = initializeOffset(connectorConfig);
+
+        offset.setBinlogStartPoint("binlog.001", 400);
+        schema.parseStreamingDdl(partition, "CREATE TABLE logged_table (id INT)", "db1", offset, Instant.now());
+
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_RECEIVED]")).hasSize(1);
+        assertThat(logInterceptor.getLogEntriesThatContainsMessage("[INCREMENTAL_DDL_PARSED]")).hasSize(1);
+        assertThat(logInterceptor.containsMessage("eventCount=1")).isTrue();
     }
 
     @Test

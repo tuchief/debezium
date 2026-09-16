@@ -95,6 +95,7 @@ public class BinlogSourceInfo extends BaseSourceInfo {
     public static final String BINLOG_ROW_IN_EVENT_OFFSET_KEY = "row";
     public static final String THREAD_KEY = "thread";
     public static final String QUERY_KEY = "query";
+    public static final String LC_TIME_NAMES_KEY = "lc_time";
 
     private String currentGtid;
     private String currentBinlogFilename;
@@ -104,6 +105,7 @@ public class BinlogSourceInfo extends BaseSourceInfo {
     private Instant sourceTime = null;
     private long threadId = -1L;
     private String currentQuery = null;
+    private String lcTimeNames = null;
     private Set<TableId> tableIds;
     private String databaseName;
 
@@ -143,6 +145,24 @@ public class BinlogSourceInfo extends BaseSourceInfo {
      */
     public String getQuery() {
         return this.currentQuery;
+    }
+
+    /**
+     * Sets the numeric locale identifier from the query event's {@code lc_time_names} status variable.
+     *
+     * @param lcTimeNames numeric locale identifier, or {@code null} when the status variable is absent
+     */
+    public void setLcTimeNames(String lcTimeNames) {
+        this.lcTimeNames = lcTimeNames;
+    }
+
+    /**
+     * Returns the numeric locale identifier from the current query event.
+     *
+     * @return numeric locale identifier, or {@code null} when the status variable is absent
+     */
+    public String getLcTimeNames() {
+        return lcTimeNames;
     }
 
     /**
@@ -341,6 +361,7 @@ public class BinlogSourceInfo extends BaseSourceInfo {
                 ", sourceTime=" + sourceTime +
                 ", threadId=" + threadId +
                 ", currentQuery='" + currentQuery + '\'' +
+                ", lcTimeNames='" + lcTimeNames + '\'' +
                 ", tableIds=" + tableIds +
                 ", databaseName='" + databaseName + '\'' +
                 "}";

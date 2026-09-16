@@ -31,6 +31,10 @@ public class BufferedLogMinerQueryBuilder extends AbstractLogMinerQueryBuilder {
         super(connectorConfig);
     }
 
+    public BufferedLogMinerQueryBuilder(OracleConnectorConfig connectorConfig, boolean extendedTransactionMetadataAvailable) {
+        super(connectorConfig, extendedTransactionMetadataAvailable);
+    }
+
     @Override
     protected String getPredicates(boolean isCteQuery) {
         final StringBuilder query = new StringBuilder(1024);

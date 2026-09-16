@@ -20,11 +20,12 @@ public class InfinispanTransactionFactory implements TransactionFactory<Infinisp
     @Override
     public InfinispanTransaction createTransaction(LogMinerEventRow event) {
         return new InfinispanTransaction(event.getTransactionId(), event.getScn(), event.getChangeTime(),
-                event.getUserName(), event.getThread(), event.getClientId());
+                event.getUserName(), event.getThread(), event.getClientId(), event.getTransactionName());
     }
 
     @Override
-    public InfinispanTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId) {
-        return new InfinispanTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId);
+    public InfinispanTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId,
+                                                   String transactionName) {
+        return new InfinispanTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId, transactionName);
     }
 }

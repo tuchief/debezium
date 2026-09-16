@@ -2275,6 +2275,22 @@ public abstract class BinlogAntlrDdlParserTest<V extends BinlogValueConverters, 
         assertThat(listener.total()).isEqualTo(0);
     }
 
+    @Test
+    void shouldParseGoldenDbSessionVariablesAdminGrant() {
+        parser.parse("GRANT CN_SESSION_VARIABLES_ADMIN ON *.* TO 'mysqluser'@'%'", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.size()).isZero();
+    }
+
+    @Test
+    void shouldAllowGoldenDbSessionVariablesAdminAsIdentifier() {
+        parser.parse("CREATE TABLE CN_SESSION_VARIABLES_ADMIN (id INT)", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.forTable(null, null, "CN_SESSION_VARIABLES_ADMIN")).isNotNull();
+    }
+
     @FixFor("DBZ-1300")
     @Test
     void shouldParseGrantStatementWithoutSpecifiedHostName() {
@@ -2347,6 +2363,22 @@ public abstract class BinlogAntlrDdlParserTest<V extends BinlogValueConverters, 
         assertSessionVariable("v2", "2");
         assertGlobalVariable("v1", null);
         assertGlobalVariable("v2", null);
+    }
+
+    @Test
+    void shouldParseLcTimeNamesSessionVariable() {
+        parser.parse("SET @@session.lc_time_names = 1024", tables);
+
+        assertSessionVariable("lc_time_names", "1024");
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+    }
+
+    @Test
+    void shouldParseAlterTableDropIndexWithLeadingClientComment() {
+        parser.parse("CREATE TABLE customers (id INT, INDEX idx (id))", tables);
+        parser.parse("/* APPLICATIONNAME=DBEAVER */ ALTER TABLE customers DROP INDEX idx", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
     }
 
     @Test

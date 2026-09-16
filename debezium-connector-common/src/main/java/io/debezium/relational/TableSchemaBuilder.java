@@ -36,6 +36,7 @@ import io.debezium.schema.FieldNameSelector.FieldNamer;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
+import io.debezium.util.FailureLogLimiter;
 import io.debezium.util.Loggings;
 
 /**
@@ -66,6 +67,7 @@ public class TableSchemaBuilder {
     private final CustomConverterRegistry customConverterRegistry;
     private final boolean multiPartitionMode;
     private final EventConvertingFailureHandlingMode eventConvertingFailureHandlingMode;
+    private final FailureLogLimiter failureLogLimiter = new FailureLogLimiter();
 
     /**
      * Create a new instance of the builder.
@@ -315,13 +317,16 @@ public class TableSchemaBuilder {
                                     Loggings.logErrorAndTraceRecord(LOGGER, row, message, tableId,
                                             col.name(), col.typeName(), e);
                                     throw new DebeziumException("Failed to properly convert data value for '" +
-                                            tableId + "." + col.name() + "' of type " + col.typeName(), e.getCause());
+                                            tableId + "." + col.name() + "' of type " + col.typeName(), e);
                                 case WARN:
-                                    Loggings.logWarningAndTraceRecord(LOGGER, row, message, tableId,
-                                            col.name(), col.typeName(), e);
+                                    final String signature = "VALUE_CONVERSION|" + tableId + "|" + col.name() + "|" + e.getClass().getName();
+                                    Loggings.logRateLimitedWarningAndTraceRecord(LOGGER, failureLogLimiter, signature,
+                                            row, message, tableId, col.name(), col.typeName(), e);
+                                    break;
                                 case SKIP:
                                     Loggings.logDebugAndTraceRecord(LOGGER, row, message, tableId,
                                             col.name(), col.typeName(), e);
+                                    break;
                             }
                         }
                     }

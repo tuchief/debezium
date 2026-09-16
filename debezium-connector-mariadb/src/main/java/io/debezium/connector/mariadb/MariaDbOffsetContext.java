@@ -71,6 +71,7 @@ public class MariaDbOffsetContext extends BinlogOffsetContext<SourceInfo> {
             offsetContext.setInitialSkips(longOffsetValue(offset, EVENTS_TO_SKIP_OFFSET_KEY),
                     (int) longOffsetValue(offset, BinlogSourceInfo.BINLOG_ROW_IN_EVENT_OFFSET_KEY));
             offsetContext.setCompletedGtidSet((String) offset.get(GTID_SET_KEY)); // may be null
+            loadLastBinlogEventTimestamp(offsetContext, offset);
             return offsetContext;
         }
     }

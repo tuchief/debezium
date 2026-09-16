@@ -244,6 +244,13 @@ public class ColumnDefinitionParserListener extends MariaDBParserBaseListener {
         }
 
         String dataTypeName = dataType.name().toUpperCase();
+        if (dataTypeName.equals("NUMBER")) {
+            MariaDBParser.DimensionDataTypeContext dimensionDataType = (MariaDBParser.DimensionDataTypeContext) dataTypeContext;
+            dataTypeName = dimensionDataType.lengthTwoOptionalDimension() == null ? "DOUBLE" : "DECIMAL";
+        }
+        else if (dataTypeName.equals("VARCHAR2")) {
+            dataTypeName = "VARCHAR";
+        }
 
         if (dataTypeName.equals("ENUM") || dataTypeName.equals("SET")) {
             // type expression has to be set, because the value converter needs to know the enum or set options

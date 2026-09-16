@@ -89,6 +89,7 @@ ddlStatement
     | alterTablespace
     | alterView
     | alterSequence
+    | commentOnColumn
     | dropDatabase
     | dropEvent
     | dropIndex
@@ -721,6 +722,14 @@ alterSequence // sequence is MariaDB-specific only
     : ALTER SEQUENCE ifExists? fullId sequenceSpec+
     ;
 
+commentOnColumn
+    : COMMENT ON COLUMN commentColumnName IS STRING_LITERAL
+    ;
+
+commentColumnName
+    : uid dottedId dottedId?
+    ;
+
 // details
 
 alterSpecification
@@ -745,7 +754,7 @@ alterSpecification
     | LOCK '='? lockType = (DEFAULT | NONE | SHARED | EXCLUSIVE)        # alterByLock
     | MODIFY COLUMN? ifExists? // here ifExists is MariaDB-specific only
     uid columnDefinition (FIRST | AFTER uid)?                             # alterByModifyColumn
-    | DROP COLUMN? ifExists? uid RESTRICT?                                # alterByDropColumn          // here ifExists is MariaDB-specific only
+    | DROP COLUMN? ifExists? uid (RESTRICT | CASCADE)?                    # alterByDropColumn          // here ifExists is MariaDB-specific only
     | DROP (CONSTRAINT | CHECK) ifExists? uid                             # alterByDropConstraintCheck // here ifExists is MariaDB-specific only
     | DROP PRIMARY KEY                                                    # alterByDropPrimaryKey
     | ADD PRIMARY KEY ifNotExists? '(' uid ')'                            # alterByNotExistingPrimaryKey // MariaDB-specific only
@@ -772,6 +781,7 @@ alterSpecification
 alterPartitionSpecification
     : ADD PARTITION ifNotExists? // here ifNotExists is MariaDB-specific only
     '(' partitionDefinition (',' partitionDefinition)* ')'                                          # alterByAddPartition
+    | ADD PARTITION PARTITIONS decimalLiteral                                                        # alterByAddPartition
     | DROP PARTITION ifExists? uidList                                                              # alterByDropPartition // here ifExists is MariaDB-specific only
     | DISCARD PARTITION (uidList | ALL) TABLESPACE                                                  # alterByDiscardPartition
     | IMPORT PARTITION (uidList | ALL) TABLESPACE                                                   # alterByImportPartition
@@ -1736,6 +1746,7 @@ privilege
     | ROLE_ADMIN
     | SERVICE_CONNECTION_ADMIN
     | SESSION_VARIABLES_ADMIN
+    | CN_SESSION_VARIABLES_ADMIN
     | SET_USER_ID
     | SHOW_ROUTINE
     | SYSTEM_USER
@@ -2286,7 +2297,7 @@ constant
 //    Data Types
 
 dataType
-    : typeName = (
+    : MARIADB_SCHEMA_DOT? typeName = (
         CHAR
         | CHARACTER
         | VARCHAR
@@ -2298,10 +2309,10 @@ dataType
         | NVARCHAR
         | LONG
     ) VARYING? lengthOneDimension? BINARY? (charSet charsetName)? (COLLATE collationName | BINARY)? # stringDataType
-    | NATIONAL typeName = (VARCHAR | CHARACTER | CHAR) lengthOneDimension? BINARY?                  # nationalStringDataType
-    | NCHAR typeName = VARCHAR lengthOneDimension? BINARY?                                          # nationalStringDataType
-    | NATIONAL typeName = (CHAR | CHARACTER) VARYING lengthOneDimension? BINARY?                    # nationalVaryingStringDataType
-    | typeName = (
+    | MARIADB_SCHEMA_DOT? NATIONAL typeName = (VARCHAR | CHARACTER | CHAR) lengthOneDimension? BINARY? # nationalStringDataType
+    | MARIADB_SCHEMA_DOT? NCHAR typeName = VARCHAR lengthOneDimension? BINARY?                         # nationalStringDataType
+    | MARIADB_SCHEMA_DOT? NATIONAL typeName = (CHAR | CHARACTER) VARYING lengthOneDimension? BINARY?   # nationalVaryingStringDataType
+    | MARIADB_SCHEMA_DOT? typeName = (
         TINYINT
         | SMALLINT
         | MEDIUMINT
@@ -2315,18 +2326,25 @@ dataType
         | INT4
         | INT8
     ) lengthOneDimension? (SIGNED | UNSIGNED | ZEROFILL)*                              # dimensionDataType
-    | typeName = REAL lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)*              # dimensionDataType
-    | typeName = DOUBLE PRECISION? lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)* # dimensionDataType
-    | typeName = VECTOR ( lengthOneDimension )                                         # dimensionDataType
-    | typeName = (DECIMAL | DEC | FIXED | NUMERIC | FLOAT | FLOAT4 | FLOAT8) lengthTwoOptionalDimension? (
+    | MARIADB_SCHEMA_DOT? typeName = REAL lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)*              # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = DOUBLE PRECISION? lengthTwoDimension? (SIGNED | UNSIGNED | ZEROFILL)* # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = VECTOR (lengthOneDimension)                                        # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (DECIMAL | DEC | FIXED | NUMERIC | FLOAT | FLOAT4 | FLOAT8) lengthTwoOptionalDimension? (
         SIGNED
         | UNSIGNED
         | ZEROFILL
     )*                                                                                                      # dimensionDataType
-    | typeName = (DATE | TINYBLOB | MEDIUMBLOB | LONGBLOB | BOOL | BOOLEAN | SERIAL)                        # simpleDataType
-    | typeName = (BIT | TIME | TIMESTAMP | DATETIME | BINARY | VARBINARY | BLOB | YEAR) lengthOneDimension? # dimensionDataType
-    | typeName = (ENUM | SET) collectionOptions BINARY? (charSet charsetName)?                              # collectionDataType
-    | typeName = (
+    | MARIADB_SCHEMA_DOT? typeName = NUMBER dimension = lengthTwoOptionalDimension? {
+        ((org.antlr.v4.runtime.WritableToken) $typeName).setType($dimension.ctx == null ? DOUBLE : DECIMAL);
+    } (
+        SIGNED
+        | UNSIGNED
+        | ZEROFILL
+    )*                                                                                                      # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (DATE | TINYBLOB | MEDIUMBLOB | LONGBLOB | BOOL | BOOLEAN | SERIAL)                        # simpleDataType
+    | MARIADB_SCHEMA_DOT? typeName = (BIT | TIME | TIMESTAMP | DATETIME | BINARY | VARBINARY | BLOB | YEAR) lengthOneDimension? # dimensionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (ENUM | SET) collectionOptions BINARY? (charSet charsetName)?                              # collectionDataType
+    | MARIADB_SCHEMA_DOT? typeName = (
         GEOMETRYCOLLECTION
         | GEOMCOLLECTION
         | LINESTRING
@@ -2338,9 +2356,9 @@ dataType
         | JSON
         | GEOMETRY
     )                                                                                  # spatialDataType
-    | typeName = LONG VARCHAR? BINARY? (charSet charsetName)? (COLLATE collationName)? # longVarcharDataType // LONG VARCHAR is the same as LONG
-    | LONG VARBINARY                                                                   # longVarbinaryDataType
-    | UUID                                                                             # uuidDataType // MariaDB-specific only
+    | MARIADB_SCHEMA_DOT? typeName = LONG VARCHAR? BINARY? (charSet charsetName)? (COLLATE collationName)? # longVarcharDataType // LONG VARCHAR is the same as LONG
+    | MARIADB_SCHEMA_DOT? LONG VARBINARY                                                                   # longVarbinaryDataType
+    | MARIADB_SCHEMA_DOT? UUID                                                                               # uuidDataType // MariaDB-specific only
     ;
 
 collectionOptions
@@ -2463,7 +2481,7 @@ functionCall
     : specificFunction                         # specificFunctionCall
     | aggregateWindowedFunction                # aggregateFunctionCall
     | nonAggregateWindowedFunction             # nonAggregateFunctionCall
-    | scalarFunctionName '(' functionArgs? ')' # scalarFunctionCall
+    | MARIADB_SCHEMA_DOT? scalarFunctionName '(' functionArgs? ')' # scalarFunctionCall
     | fullId '(' functionArgs? ')'             # udfFunctionCall
     | passwordFunctionClause                   # passwordFunctionCall
     ;
@@ -3152,6 +3170,7 @@ keywordsCanBeId
     | SERVER
     | SESSION
     | SESSION_VARIABLES_ADMIN
+    | CN_SESSION_VARIABLES_ADMIN
     | SET_USER_ID
     | SHARE
     | SHARED
@@ -3504,6 +3523,7 @@ functionNameBase
     | SEC_TO_TIME
     | SESSION_USER
     | SESSION_VARIABLES_ADMIN
+    | CN_SESSION_VARIABLES_ADMIN
     | SHA
     | SHA1
     | SHA2

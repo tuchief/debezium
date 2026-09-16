@@ -245,7 +245,7 @@
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
-                <artifactId>mysql-binlog-connector-java</artifactId>
+                <artifactId>dataknown-mysql-binlog-connector-java</artifactId>
                 <version>${version.mysql.binlog}</version>
             </dependency>
             <dependency>

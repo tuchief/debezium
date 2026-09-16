@@ -163,6 +163,96 @@ public class MySqlAntlrDdlParserTest
         assertThat(c2.defaultValueExpression().get()).isEqualTo("0");
     }
 
+    @Test
+    void shouldParseGoldenDbXaPreparedList() {
+        SimpleDdlParserListener changes = new SimpleDdlParserListener();
+        parser = getParser(changes);
+
+        parser.parse("XA_PREPARED_LIST 'transaction-1';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(changes.total()).isZero();
+    }
+
+    @Test
+    void shouldParseGoldenDbDuplicateTableOption() {
+        parser.parse("CREATE TABLE duplicate_option (id INT) DUPLICATE='Y';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.forTable(null, null, "duplicate_option")).isNotNull();
+    }
+
+    @Test
+    void shouldParseGoldenDbTruncateWithRecyclebinVersion() {
+        parser.parse("CREATE TABLE recycle_truncate (id INT);", tables);
+        parser.parse("TRUNCATE TABLE recycle_truncate FOR RECYCLEBIN_VERSION 'v1';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.forTable(null, null, "recycle_truncate")).isNotNull();
+    }
+
+    @Test
+    void shouldParseGoldenDbDropWithRecyclebinVersion() {
+        parser.parse("CREATE TABLE recycle_drop (id INT);", tables);
+        parser.parse("DROP TABLE recycle_drop FOR RECYCLEBIN_VERSION 'v1';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.forTable(null, null, "recycle_drop")).isNull();
+    }
+
+    @Test
+    void shouldParseGoldenDbPurgeTable() {
+        parser.parse("PURGE TABLE recycle_drop FOR RECYCLEBIN_VERSION 'v1';", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+    }
+
+    @Test
+    void shouldParseGoldenDbSchemaQualifiedCreateIndex() {
+        parser.parse("CREATE TABLE inventory.customers (id INT NOT NULL);", tables);
+        parser.parse("CREATE UNIQUE INDEX inventory.idx_customers ON inventory.customers(id);", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        Table table = tables.forTable("inventory", null, "customers");
+        assertThat(table).isNotNull();
+        assertThat(table.primaryKeyColumnNames()).containsExactly("id");
+    }
+
+    @Test
+    void shouldParseGoldenDbSchemaQualifiedDropIndexWithTable() {
+        parser.parse("DROP INDEX inventory.idx_customers ON inventory.customers;", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+    }
+
+    @Test
+    void shouldParseGoldenDbSchemaQualifiedDropIndexWithoutTable() {
+        parser.parse("DROP INDEX inventory.idx_customers;", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+    }
+
+    @Test
+    void shouldParseGoldenDbRenameWithoutTableKeyword() {
+        parser.parse("CREATE TABLE inventory.old_name (id INT);", tables);
+        parser.parse("RENAME inventory.old_name TO inventory.new_name;", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        assertThat(tables.forTable("inventory", null, "old_name")).isNull();
+        assertThat(tables.forTable("inventory", null, "new_name")).isNotNull();
+    }
+
+    @Test
+    void shouldResolveUnqualifiedUniqueIndexWithoutFailure() {
+        parser.parse("CREATE TABLE inventory.no_primary_key (id INT NOT NULL);", tables);
+        parser.parse("CREATE UNIQUE INDEX idx_no_primary_key ON inventory.no_primary_key(id);", tables);
+
+        assertThat(parser.getParsingExceptionsFromWalker()).isEmpty();
+        Table table = tables.forTable("inventory", null, "no_primary_key");
+        assertThat(table).isNotNull();
+        assertThat(table.primaryKeyColumnNames()).containsExactly("id");
+    }
+
     public static class MySqlDdlParserWithSimpleTestListener extends MySqlAntlrDdlParser {
         MySqlDdlParserWithSimpleTestListener(DdlChanges changesListener) {
             this(changesListener, false);

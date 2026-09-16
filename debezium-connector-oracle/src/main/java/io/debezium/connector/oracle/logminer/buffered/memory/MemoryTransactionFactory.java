@@ -20,11 +20,12 @@ public class MemoryTransactionFactory implements TransactionFactory<MemoryTransa
     @Override
     public MemoryTransaction createTransaction(LogMinerEventRow event) {
         return new MemoryTransaction(event.getTransactionId(), event.getScn(), event.getChangeTime(),
-                event.getUserName(), event.getThread(), event.getClientId());
+                event.getUserName(), event.getThread(), event.getClientId(), event.getTransactionName());
     }
 
     @Override
-    public MemoryTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId) {
-        return new MemoryTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId);
+    public MemoryTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId,
+                                               String transactionName) {
+        return new MemoryTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId, transactionName);
     }
 }

@@ -5,6 +5,7 @@
  */
 package io.debezium.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -89,6 +90,13 @@ class JdbcConnectionTest {
                     eq("jdbc:driver://db-host$01.example.com:5432;databaseName=db$name-dev_01#test@mock+v1!"),
                     eq(new Properties())));
         }
+    }
+
+    @Test
+    void shouldEscapeEmbeddedClosingQuoteWhenQuotingIdentifier() {
+        JdbcConnection connection = new JdbcConnection(JdbcConfiguration.empty(), config -> null, "`", "`");
+
+        assertEquals("`t_backquot``e`", connection.quoteIdentifier("t_backquot`e"));
     }
 
     private static class RogueConnection extends NormalConnection {

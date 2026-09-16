@@ -173,22 +173,22 @@ public class RedoThreadState {
             return disabledTime;
         }
 
-        // Not in Oracle 10
+        // Available from Oracle 10 onward
         public Long getLastRedoSequenceNumber() {
             return lastRedoSequenceNumber;
         }
 
-        // Not in Oracle 10
+        // Available from Oracle 10 onward
         public Long getLastRedoBlock() {
             return lastRedoBlock;
         }
 
-        // Not in Oracle 10
+        // Available from Oracle 10 onward
         public Scn getLastRedoScn() {
             return lastRedoScn;
         }
 
-        // Not in Oracle 10
+        // Available from Oracle 10 onward
         public Instant getLastRedoTime() {
             return lastRedoTime;
         }

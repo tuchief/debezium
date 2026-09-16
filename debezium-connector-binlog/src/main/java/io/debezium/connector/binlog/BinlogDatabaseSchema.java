@@ -33,6 +33,7 @@ import io.debezium.relational.ValueConverterProvider;
 import io.debezium.relational.ddl.DdlChanges;
 import io.debezium.relational.ddl.DdlParser;
 import io.debezium.relational.ddl.DdlParserListener;
+import io.debezium.relational.history.SchemaHistory;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
@@ -259,7 +260,7 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
      * @return list of parsed schema changes
      */
     public List<SchemaChangeEvent> parseStreamingDdl(P partition, String ddlStatements, String databaseName, O offset, Instant sourceTime) {
-        LOGGER.debug("Processing streaming DDL '{}' for database '{}'", ddlStatements, databaseName);
+        IncrementalDdlLogger.info("INCREMENTAL_DDL_RECEIVED", databaseName, ddlStatements, "");
         return parseDdl(partition, ddlStatements, databaseName, offset, sourceTime, false);
     }
 
@@ -307,19 +308,28 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
                                              Instant sourceTime, boolean snapshot) {
         final List<SchemaChangeEvent> schemaChangeEvents = new ArrayList<>(3);
         if (ignoredQueryStatements.contains(ddlStatements)) {
+            if (!snapshot) {
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
+                        "reason=IGNORED_STATEMENT");
+            }
             return schemaChangeEvents;
         }
 
         DdlChanges ddlChanges = new DdlChanges();
+        boolean parsingFailed = false;
         try {
             this.ddlParser.setCurrentSchema(databaseName);
             ddlChanges = this.ddlParser.parse(ddlStatements, tables());
         }
         catch (ParsingException | MultipleParsingExceptions e) {
+            parsingFailed = true;
             if (skipUnparseableDdlStatements()) {
-                LOGGER.warn("Ignoring unparseable DDL statement '{}'", ddlStatements, e);
+                IncrementalDdlLogger.parseFailure(databaseName, ddlStatements, true,
+                        SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), e);
             }
             else {
+                IncrementalDdlLogger.parseFailure(databaseName, ddlStatements, false,
+                        SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS.name(), e);
                 throw e;
             }
         }
@@ -328,7 +338,10 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
         // Also skip if DDL matches the filter (e.g., CREATE FUNCTION, PROCEDURE, VIEW, TRIGGER)
         // BUT do NOT filter TRUNCATE statements as they need special handling based on skipped.operations config
         if (!TRUNCATE_STATEMENT_PATTERN.matcher(ddlStatements).matches() && ddlFilter().test(ddlStatements)) {
-            LOGGER.debug("Changes for DDL '{}' were filtered and not recorded in database schema history", ddlStatements);
+            if (!snapshot && !parsingFailed) {
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
+                        "reason=DDL_FILTER");
+            }
             return schemaChangeEvents;
         }
 
@@ -399,7 +412,15 @@ public abstract class BinlogDatabaseSchema<P extends BinlogPartition, O extends 
             }
         }
         else {
-            LOGGER.debug("Changes for DDL '{}' were filtered and not recorded in database schema history", ddlStatements);
+            if (!snapshot && !parsingFailed) {
+                IncrementalDdlLogger.info("INCREMENTAL_DDL_SKIPPED", databaseName, ddlStatements,
+                        "reason=CAPTURE_FILTER");
+            }
+            return schemaChangeEvents;
+        }
+        if (!snapshot && !parsingFailed) {
+            IncrementalDdlLogger.info("INCREMENTAL_DDL_PARSED", databaseName, ddlStatements,
+                    "eventCount=" + schemaChangeEvents.size() + ", schemaChangeDetected=" + !ddlChanges.isEmpty());
         }
         return schemaChangeEvents;
     }

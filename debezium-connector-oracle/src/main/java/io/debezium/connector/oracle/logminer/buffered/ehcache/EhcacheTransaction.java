@@ -19,13 +19,15 @@ public class EhcacheTransaction extends AbstractTransaction {
 
     private int numberOfEvents;
 
-    public EhcacheTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThread, String clientId) {
-        super(transactionId, startScn, changeTime, userName, redoThread, clientId);
+    public EhcacheTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThread, String clientId,
+                              String transactionName) {
+        super(transactionId, startScn, changeTime, userName, redoThread, clientId, transactionName);
         start();
     }
 
-    public EhcacheTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThread, int numberOfEvents, String clientId) {
-        super(transactionId, startScn, changeTime, userName, redoThread, clientId);
+    public EhcacheTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThread, int numberOfEvents, String clientId,
+                              String transactionName) {
+        super(transactionId, startScn, changeTime, userName, redoThread, clientId, transactionName);
         this.numberOfEvents = numberOfEvents;
     }
 

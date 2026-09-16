@@ -70,6 +70,7 @@ public class LogMinerEventRow {
     private Instant startTime;
     private Instant commitTime;
     private Long transactionSequence;
+    private String transactionName;
 
     public Scn getScn() {
         return scn;
@@ -179,6 +180,10 @@ public class LogMinerEventRow {
         return commitTime;
     }
 
+    public String getTransactionName() {
+        return transactionName;
+    }
+
     public boolean hasErrorStatus() {
         return status == 2;
     }
@@ -216,7 +221,6 @@ public class LogMinerEventRow {
             final int pos = indexes.getCommitTimestampIndex();
             resolvers.add((row, rs) -> row.commitTime = getTime(rs, pos));
         }
-
         return resolvers.toArray(new ResultSetValueResolver[0]);
     }
 
@@ -274,6 +278,7 @@ public class LogMinerEventRow {
 
         // Variable positions and SQL redo: iterate over pre-built resolvers.
         indexes.applyResolvers(this, resultSet);
+        this.transactionName = resultSet.getString(indexes.getTransactionNameIndex());
 
         // Explicitly read sqlRedo at the end of all other columns
         // getSqlRedo reads from fixed positions 2, 3, 6 and may call rs.next() for continuation rows.
@@ -391,6 +396,7 @@ public class LogMinerEventRow {
                 ", ssn=" + ssn +
                 ", thread=" + thread +
                 ", clientId=" + clientId +
+                ", transactionName='" + transactionName + '\'' +
                 // Specifically log SQL only if TRACE is enabled; otherwise omit for others
                 ", redoSql='" + (LOGGER.isTraceEnabled() ? redoSql : "<omitted>") + '\'' +
                 '}';

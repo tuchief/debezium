@@ -273,7 +273,7 @@ TIMESTAMP  : 'TIMESTAMP';
 DATETIME   : 'DATETIME';
 YEAR       : 'YEAR';
 CHAR       : 'CHAR';
-VARCHAR    : 'VARCHAR';
+VARCHAR    : 'VARCHAR' '2'?;
 NVARCHAR   : 'NVARCHAR';
 NATIONAL   : 'NATIONAL';
 BINARY     : 'BINARY';
@@ -825,6 +825,7 @@ ROUTINE                    : 'ROUTINE';
 S3                         : 'S3';
 SERVICE_CONNECTION_ADMIN   : 'SERVICE_CONNECTION_ADMIN';
 SESSION_VARIABLES_ADMIN    : QUOTE_SYMB? 'SESSION_VARIABLES_ADMIN' QUOTE_SYMB?;
+CN_SESSION_VARIABLES_ADMIN : 'CN_SESSION_VARIABLES_ADMIN';
 SET_USER_ID                : 'SET_USER_ID';
 SHOW_ROUTINE               : 'SHOW_ROUTINE';
 SHUTDOWN                   : 'SHUTDOWN';
@@ -1378,6 +1379,8 @@ fragment HEX_DIGIT         : [0-9A-F];
 fragment DEC_DIGIT         : [0-9];
 fragment BIT_STRING_L      : 'B' '\'' [01]+ '\'';
 fragment IP_ADDRESS        : [0-9]+ '.' [0-9.]+ | [0-9A-F:]+ ':' [0-9A-F:]+;
+
+MARIADB_SCHEMA_DOT : 'MARIADB_SCHEMA.';
 
 // Last tokens must generate Errors
 

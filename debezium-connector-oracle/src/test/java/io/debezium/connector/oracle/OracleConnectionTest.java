@@ -10,9 +10,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLRecoverableException;
 import java.sql.Statement;
@@ -62,5 +64,31 @@ public class OracleConnectionTest {
                 connection.getOracleVersion();
             }
         });
+    }
+
+    @Test
+    void shouldReadLastRedoStateColumnsOnOracle10g() throws Exception {
+        final ResultSet resultSet = mock(ResultSet.class);
+        final OracleDatabaseVersion oracle10g = mock(OracleDatabaseVersion.class);
+        when(oracle10g.getMajor()).thenReturn(10);
+        when(statement.executeQuery("SELECT * FROM V$THREAD")).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getInt("THREAD#")).thenReturn(1);
+        when(resultSet.getString("STATUS")).thenReturn("OPEN");
+        when(resultSet.getString("ENABLED")).thenReturn("PUBLIC");
+        when(resultSet.getString("INSTANCE")).thenReturn("ORCL");
+
+        try (OracleConnection oracleConnection = new OracleConnection(jdbcConfiguration, connectionFactory, true) {
+            @Override
+            public OracleDatabaseVersion getOracleVersion() {
+                return oracle10g;
+            }
+        }) {
+            oracleConnection.getRedoThreadState();
+        }
+
+        verify(resultSet).getLong("LAST_REDO_SEQUENCE#");
+        verify(resultSet).getLong("LAST_REDO_BLOCK");
+        verify(resultSet).getString("LAST_REDO_CHANGE#");
     }
 }

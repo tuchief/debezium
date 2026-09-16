@@ -85,6 +85,8 @@ public final class LogMinerColumnIndexes {
     private final Integer startTimestampIndex;
     /** Ordinal for {@code COMMIT_TIMESTAMP}, or {@code null} when commit-timestamp tracking is disabled. */
     private final Integer commitTimestampIndex;
+    /** Ordinal for mandatory {@code TX_NAME}. */
+    private final int transactionNameIndex;
 
     /**
      * Computes all column ordinals from the given configuration flags.
@@ -108,6 +110,7 @@ public final class LogMinerColumnIndexes {
         rsIdIndex = trackRsId ? ++pos : null;
         usernameIndex = trackUsername ? ++pos : null;
         clientIdIndex = trackClientId ? ++pos : null;
+        transactionNameIndex = ++pos;
 
         this.resolvers = LogMinerEventRow.buildOptionalResolvers(this);
     }
@@ -120,11 +123,15 @@ public final class LogMinerColumnIndexes {
      * @return an immutable {@code LogMinerColumnIndexes}
      */
     public static LogMinerColumnIndexes fromConfig(OracleConnectorConfig config) {
+        return fromConfig(config, true);
+    }
+
+    public static LogMinerColumnIndexes fromConfig(OracleConnectorConfig config, boolean clientIdAvailable) {
         return new LogMinerColumnIndexes(
                 config.getCatalogName(),
                 config.isLogMiningBufferTrackUsername(),
                 config.isLogMiningBufferTrackRsId(),
-                config.isLogMiningBufferTrackClientId(),
+                clientIdAvailable && config.isLogMiningBufferTrackClientId(),
                 config.isLogMiningBufferTrackStartTimestamp(),
                 config.isLogMiningBufferTrackCommitTimestamp());
     }
@@ -190,6 +197,11 @@ public final class LogMinerColumnIndexes {
      */
     public Integer getCommitTimestampIndex() {
         return commitTimestampIndex;
+    }
+
+    /** Returns the 1-based ordinal for mandatory {@code TX_NAME}. */
+    public int getTransactionNameIndex() {
+        return transactionNameIndex;
     }
 
 }

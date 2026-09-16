@@ -33,7 +33,9 @@ public interface TransactionFactory<T extends Transaction> {
      * @param userName the transaction user name, may be {@code null}
      * @param redoThreadId the redo thread id, may be {@code null}
      * @param clientId the transaction client id, may be {@code null}
+     * @param transactionName the Oracle transaction name, may be {@code null}
      * @return the constructed transaction instance, never {@code null}
      */
-    T createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId);
+    T createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId,
+                        String transactionName);
 }

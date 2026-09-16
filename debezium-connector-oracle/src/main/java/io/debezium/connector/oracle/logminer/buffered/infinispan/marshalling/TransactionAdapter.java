@@ -36,12 +36,14 @@ public class TransactionAdapter {
      * @param userName the user name
      * @param redoThreadId the redo thread id
      * @param clientId the client id
+     * @param transactionName the Oracle transaction name
      * @return the constructed Transaction instance
      */
     @ProtoFactory
     public InfinispanTransaction factory(String transactionId, String scn, String changeTime, int numberOfEvents, String userName, Integer redoThreadId,
-                                         String clientId) {
-        return new InfinispanTransaction(transactionId, Scn.valueOf(scn), Instant.parse(changeTime), userName, numberOfEvents, redoThreadId, clientId);
+                                         String clientId, String transactionName) {
+        return new InfinispanTransaction(transactionId, Scn.valueOf(scn), Instant.parse(changeTime), userName, numberOfEvents, redoThreadId, clientId,
+                transactionName);
     }
 
     /**
@@ -122,5 +124,16 @@ public class TransactionAdapter {
     @ProtoField(number = 7)
     public String getClientId(InfinispanTransaction transaction) {
         return transaction.getClientId();
+    }
+
+    /**
+     * A ProtoStream handler to extract the {@code transactionName} field from the transaction.
+     *
+     * @param transaction the transaction instance, must not be {@code null}
+     * @return the Oracle transaction name
+     */
+    @ProtoField(number = 8)
+    public String getTransactionName(InfinispanTransaction transaction) {
+        return transaction.getTransactionName();
     }
 }

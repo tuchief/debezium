@@ -2057,6 +2057,10 @@ RECOVER_SYMBOL
     : R E C O V E R
     ;
 
+RECYCLEBIN_VERSION_SYMBOL
+    : R E C Y C L E B I N '_' V E R S I O N
+    ;
+
 REDO_BUFFER_SIZE_SYMBOL
     : R E D O '_' B U F F E R '_' S I Z E
     ;
@@ -2879,6 +2883,10 @@ WRITE_SYMBOL
 
 X509_SYMBOL
     : X '509'
+    ;
+
+XA_PREPARED_LIST_SYMBOL
+    : X A '_' P R E P A R E D '_' L I S T
     ;
 
 XA_SYMBOL

@@ -51,6 +51,20 @@ public interface Transaction {
     String getClientId();
 
     /**
+     * Get the Oracle transaction name associated with the transaction.
+     *
+     * @return the transaction name, may be {@code null}
+     */
+    String getTransactionName();
+
+    /**
+     * Update the Oracle transaction name when it becomes available on a later mined row.
+     *
+     * @param transactionName the transaction name, may be {@code null}
+     */
+    void setTransactionName(String transactionName);
+
+    /**
      * Get the number of events participating in the transaction.
      *
      * @return the number of transaction events

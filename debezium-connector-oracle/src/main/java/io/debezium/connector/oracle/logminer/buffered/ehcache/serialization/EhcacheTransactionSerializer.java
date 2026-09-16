@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.oracle.logminer.buffered.ehcache.serialization;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.time.Instant;
 
@@ -32,6 +33,7 @@ public class EhcacheTransactionSerializer extends AbstractEhcacheSerializer<Ehca
         stream.writeInt(object.getRedoThreadId());
         stream.writeInt(object.getNumberOfEvents());
         stream.writeString(object.getClientId());
+        stream.writeString(object.getTransactionName());
     }
 
     @Override
@@ -43,7 +45,14 @@ public class EhcacheTransactionSerializer extends AbstractEhcacheSerializer<Ehca
         final int redoThread = stream.readInt();
         final int numberOfEvents = stream.readInt();
         final String clientId = stream.readString();
-        return new EhcacheTransaction(transactionId, startScn, changeTime, userName, redoThread, numberOfEvents, clientId);
+        String transactionName = null;
+        try {
+            transactionName = stream.readString();
+        }
+        catch (EOFException ignored) {
+            // Cache entries written before transaction-name support ended after clientId.
+        }
+        return new EhcacheTransaction(transactionId, startScn, changeTime, userName, redoThread, numberOfEvents, clientId, transactionName);
     }
 
     private Scn readScn(String value) {

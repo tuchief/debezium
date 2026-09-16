@@ -33,6 +33,27 @@ public class Loggings {
         LOGGER.trace("Source of warning is record '{}'", record);
     }
 
+    public static void logRateLimitedWarningAndTraceRecord(Logger logger, FailureLogLimiter limiter, String signature,
+                                                           Object record, String message, Object... arguments) {
+        logRateLimited(logger, limiter, signature, record, false, message, arguments);
+    }
+
+    public static void logRateLimitedErrorAndTraceRecord(Logger logger, FailureLogLimiter limiter, String signature,
+                                                         Object record, String message, Object... arguments) {
+        logRateLimited(logger, limiter, signature, record, true, message, arguments);
+    }
+
+    public static void logErrorNoThrow(Logger logger, String message, Object... arguments) {
+        try {
+            if (logger.isErrorEnabled()) {
+                logger.error(message, arguments);
+            }
+        }
+        catch (RuntimeException ignored) {
+            // Diagnostics must not alter event processing.
+        }
+    }
+
     /**
      * Log a debug message and explicitly append the source of the debug entry as a separate log entry that uses
      * trace logging to prevent unintended leaking of sensitive data.
@@ -97,5 +118,47 @@ public class Loggings {
             return Arrays.toString(value);
         }
         return "[REDACTED]";
+    }
+
+    private static void logRateLimited(Logger logger, FailureLogLimiter limiter, String signature, Object record,
+                                       boolean error, String message, Object... arguments) {
+        try {
+            if (error ? !logger.isErrorEnabled() : !logger.isWarnEnabled()) {
+                return;
+            }
+            final FailureLogLimiter.Decision decision = limiter.acquire(signature);
+            if (!decision.shouldLog()) {
+                return;
+            }
+            String effectiveMessage = message;
+            Object[] effectiveArguments = arguments;
+            if (decision.suppressedCount() > 0 || decision.overflow()) {
+                effectiveMessage += " [suppressedCount={}, overflow={}]";
+                effectiveArguments = appendBeforeThrowable(arguments, decision.suppressedCount(), decision.overflow());
+            }
+            if (error) {
+                logger.error(effectiveMessage, effectiveArguments);
+            }
+            else {
+                logger.warn(effectiveMessage, effectiveArguments);
+            }
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Source of failure is record '{}'", record);
+            }
+        }
+        catch (RuntimeException ignored) {
+            // Diagnostics must not alter event processing.
+        }
+    }
+
+    private static Object[] appendBeforeThrowable(Object[] arguments, Object... additions) {
+        final boolean hasThrowable = arguments.length > 0 && arguments[arguments.length - 1] instanceof Throwable;
+        final int argumentCount = hasThrowable ? arguments.length - 1 : arguments.length;
+        final Object[] result = Arrays.copyOf(arguments, arguments.length + additions.length);
+        System.arraycopy(additions, 0, result, argumentCount, additions.length);
+        if (hasThrowable) {
+            result[result.length - 1] = arguments[arguments.length - 1];
+        }
+        return result;
     }
 }

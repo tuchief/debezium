@@ -22,6 +22,10 @@ public class UnbufferedLogMinerQueryBuilder extends AbstractLogMinerQueryBuilder
         super(connectorConfig);
     }
 
+    public UnbufferedLogMinerQueryBuilder(OracleConnectorConfig connectorConfig, boolean extendedTransactionMetadataAvailable) {
+        super(connectorConfig, extendedTransactionMetadataAvailable);
+    }
+
     @Override
     protected String getPredicates(boolean isCteQuery) {
         final StringBuilder predicates = new StringBuilder(1024);
@@ -29,7 +33,10 @@ public class UnbufferedLogMinerQueryBuilder extends AbstractLogMinerQueryBuilder
         // For DDL operations, the COMMIT_SCN column is NULL when using COMMITTED_DATA_ONLY mode,
         // and so we use the INFO field combined with the COMMIT_SCN field to retrieve those
         // specific rows.
-        predicates.append("(COMMIT_SCN >= ? AND COMMIT_SCN < ? OR (COMMIT_SCN IS NULL AND INFO IN (' DDL', 'USER DDL (PlSql=0 RecDep=0)')))");
+        final String commitScnColumn = extendedTransactionMetadataAvailable ? "COMMIT_SCN" : "CSCN";
+        predicates.append("(").append(commitScnColumn).append(" >= ? AND ").append(commitScnColumn)
+                .append(" < ? OR (").append(commitScnColumn)
+                .append(" IS NULL AND INFO IN (' DDL', 'USER DDL (PlSql=0 RecDep=0)')))");
 
         final String multiTenantPredicate = getMultiTenantPredicate();
         if (!Strings.isNullOrEmpty(multiTenantPredicate)) {

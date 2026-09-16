@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
+import io.debezium.connector.binlog.jdbc.BinlogValueConverters;
 import io.debezium.connector.binlog.util.BinlogTestConnection;
 import io.debezium.connector.binlog.util.TestHelper;
 import io.debezium.connector.binlog.util.UniqueDatabase;
@@ -35,6 +37,7 @@ import io.debezium.embedded.DebeziumEngineTestUtils.CompletionResult;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.junit.SkipWhenDatabaseVersion;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.time.MicroTimestamp;
 
 @SkipWhenDatabaseVersion(check = LESS_THAN, major = 8, minor = 0, patch = 20, reason = "MySQL 8.0.20 started supporting binlog compression")
 public abstract class BinlogTransactionPayloadIT<C extends SourceConnector> extends AbstractBinlogConnectorIT<C> {
@@ -133,6 +136,58 @@ public abstract class BinlogTransactionPayloadIT<C extends SourceConnector> exte
             assertThat(((ByteBuffer) product.get("code")).array()).isEqualTo(uuidToByteArray(PRODUCT_CODE));
         }
         assertThat(orderDmls).hasSize(4);
+    }
+
+    @Test
+    void shouldCaptureCompressedDdlRowsAndDatetimeWithoutShift() throws Exception {
+        config = DATABASE.defaultConfig()
+                .with(BinlogConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
+                .with(BinlogConnectorConfig.SNAPSHOT_MODE, BinlogConnectorConfig.SnapshotMode.NO_DATA)
+                .build();
+
+        start(getConnectorClass(), config);
+        waitForStreamingRunning(getConnectorName(), DATABASE.getServerName(), getStreamingNamespace());
+        DATABASE.initialize();
+        consumeRecordsByTopic(4);
+
+        String tableName = "compressed_events";
+        String firstPayload = "a".repeat(2_000);
+        String secondPayload = "b".repeat(2_000);
+        try (BinlogTestConnection db = getTestDatabaseConnection(DATABASE.getDatabaseName())) {
+            db.setBinlogCompressionOn();
+            try (JdbcConnection connection = db.connect()) {
+                connection.execute("CREATE TABLE " + tableName +
+                        " (id INT PRIMARY KEY, created_at DATETIME(6), payload VARCHAR(4000)) COMMENT='" +
+                        "c".repeat(1_000) + "'");
+            }
+        }
+
+        SourceRecords ddlRecords = consumeRecordsByTopic(1);
+        assertThat(ddlRecords.ddlRecordsForDatabase(DATABASE.getDatabaseName()))
+                .extracting(record -> ((Struct) record.value()).getString("ddl"))
+                .anyMatch(ddl -> ddl.contains(tableName));
+
+        try (BinlogTestConnection db = getTestDatabaseConnection(DATABASE.getDatabaseName());
+                JdbcConnection connection = db.connect()) {
+            connection.execute("INSERT INTO " + tableName +
+                    " VALUES (1, '1989-03-21 01:02:03.123456', '" + firstPayload + "')");
+            connection.execute("UPDATE " + tableName + " SET payload='" + secondPayload + "' WHERE id=1");
+            connection.execute("DELETE FROM " + tableName + " WHERE id=1");
+        }
+
+        List<SourceRecord> records = consumeRecordsByTopic(3).recordsForTopic(DATABASE.topicForTable(tableName));
+        assertThat(records).hasSize(3);
+        long expectedDateTime = MicroTimestamp.toEpochMicros(LocalDateTime.of(1989, 3, 21, 1, 2, 3, 123_456_000),
+                BinlogValueConverters::adjustTemporal);
+        Struct insert = ((Struct) records.get(0).value()).getStruct(Envelope.FieldName.AFTER);
+        Struct update = ((Struct) records.get(1).value()).getStruct(Envelope.FieldName.AFTER);
+        Struct delete = ((Struct) records.get(2).value()).getStruct(Envelope.FieldName.BEFORE);
+        assertThat(insert.getInt64("created_at")).isEqualTo(expectedDateTime);
+        assertThat(update.getInt64("created_at")).isEqualTo(expectedDateTime);
+        assertThat(delete.getInt64("created_at")).isEqualTo(expectedDateTime);
+        assertThat(insert.getString("payload")).isEqualTo(firstPayload);
+        assertThat(update.getString("payload")).isEqualTo(secondPayload);
+        assertThat(delete.getString("payload")).isEqualTo(secondPayload);
     }
 
     private byte[] uuidToByteArray(UUID uuid) {

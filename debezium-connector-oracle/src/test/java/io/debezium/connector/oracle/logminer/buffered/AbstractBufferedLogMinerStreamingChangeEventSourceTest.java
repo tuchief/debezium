@@ -173,6 +173,27 @@ public abstract class AbstractBufferedLogMinerStreamingChangeEventSourceTest ext
     }
 
     @Test
+    void shouldApplyAndClearTransactionNameWhenProcessingBufferedCommit() throws Exception {
+        try (var source = getChangeEventSource(getConfig().build())) {
+            final LogMinerEventRow commit = getCommitLogMinerEventRow(3, TRANSACTION_ID_1);
+            final LogMinerEventRow start = getStartLogMinerEventRow(1, TRANSACTION_ID_1);
+            final LogMinerEventRow insert = getInsertLogMinerEventRow(2, TRANSACTION_ID_1);
+            Mockito.when(start.getTransactionName()).thenReturn("RPS_ORIGIN");
+            Mockito.when(insert.getTransactionName()).thenReturn("RPS_ORIGIN");
+            Mockito.when(commit.getTransactionName()).thenReturn(null);
+            Mockito.when(start.getUserName()).thenReturn(TestHelper.SCHEMA_USER);
+
+            source.processEvent(start);
+            source.processEvent(insert);
+            source.processEvent(commit);
+
+            final var inOrder = Mockito.inOrder(offsetContext);
+            inOrder.verify(offsetContext).setTransactionName("RPS_ORIGIN");
+            inOrder.verify(offsetContext).setTransactionName(null);
+        }
+    }
+
+    @Test
     @FixFor("DBZ-7473")
     public void testCacheIsEmptyWhenTransactionIsCommittedAndStartEventIsNotHandled() throws Exception {
         try (var source = getChangeEventSource(getConfig().build())) {

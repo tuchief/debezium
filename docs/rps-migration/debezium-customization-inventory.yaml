@@ -1,0 +1,355 @@
+inventory_version: 1
+generated_on: 2026-09-14
+scope: RPS Debezium 3.0.3 customizations migrating to Debezium 3.6
+
+baselines:
+  original_upstream:
+    ref: v3.0.3.Final
+    commit: 1b3fbba7db5373fc80af91ce90af438169eac4d6
+  target_upstream:
+    ref: v3.6.2.Final
+    commit: 02810e25b19c04e5095b2b6fbbdcbae549a69f19
+  target_branch:
+    ref: upgrade/debezium-3.6-rps
+
+source_lines:
+  mysql_mariadb:
+    ref: origin/mysql-mariadb-enhancement-fixes
+    tip: 5694e7c59b565e11be0ce53d5d6db3669f498ae6
+    commits_after_3_0_3: 44
+  tdsql_mysql:
+    ref: origin/tdsql_for_mysql3.0.3
+    commits_after_3_0_3: 18
+    relationship: prefix of mysql_mariadb through 7aa7314449
+  oracle:
+    ref: origin/feature/oracle-parse-transaction_name
+    commits_after_3_0_3: 8
+    relationship: first six shared commits plus two Oracle-specific commits
+
+known_internal_versions:
+  source: Nexus REST inventory plus all reachable RPS POM history; audited 2026-09-16
+  nexus_inventory: docs/rps-migration/g0-nexus-artifact-inventory-2026-09-16.md
+  nexus_target_jars: 44
+  nexus_target_jars_sha256_verified: 44
+  nexus_target_poms: 0
+  debezium:
+    - 3.0.3-250815.Final
+    - 3.0.3-250905.Final
+    - 3.0.3-250909.Final
+    - 3.0.3-260913.Final
+  binlog_client:
+    - 0.40.2-250905
+    - 0.40.2-20260423
+    - 0.40.2-20260428
+
+capabilities:
+  - id: RPS-DDL-GOLDENDB
+    name: GoldenDB and TDSQL MySQL DDL grammar
+    disposition: MIXED_REBASED_UNCOMMITTED
+    commits:
+      - 8545d39873
+      - 42360137dc
+      - c01d45f70b
+      - 4ffdc2571b
+      - 0c6cc3a327
+      - cfe75e2ee5
+      - 79a96ac68e
+      - 5d70eabf7f
+      - 2b9fde9796
+      - aa04cc9dd1
+      - 65678dd537
+    behaviors:
+      - XA_PREPARED_LIST
+      - DUPLICATE option
+      - RECYCLEBIN_VERSION and PURGE
+      - schema-qualified CREATE INDEX and DROP INDEX
+      - GoldenDB RENAME syntax
+      - defensive unique-index name resolution
+    qualification:
+      clean_3_6_2_red:
+        focused_tests: 10
+        parsing_errors: 7
+      upstream:
+        - behavior: DUPLICATE table option
+          commits: [42360137dc]
+        - behavior: schema-qualified DROP INDEX with ON table
+          commits: [cfe75e2ee5]
+        - behavior: unqualified unique-index name resolution
+          commits: [5d70eabf7f, aa04cc9dd1, 65678dd537]
+      rebased:
+        - behavior: XA_PREPARED_LIST
+          commits: [8545d39873]
+        - behavior: TRUNCATE, DROP, and PURGE with RECYCLEBIN_VERSION
+          commits: [c01d45f70b, 4ffdc2571b]
+        - behavior: schema-qualified CREATE INDEX and last-segment index-name resolution
+          commits: [0c6cc3a327, 5d70eabf7f, aa04cc9dd1, 65678dd537]
+        - behavior: schema-qualified DROP INDEX without ON table
+          commits: [79a96ac68e]
+        - behavior: RENAME without TABLE
+          commits: [2b9fde9796]
+      green_evidence:
+        focused_tests: 10 passed with 0 failures and 0 errors
+        mysql_non_docker: 377 tests, 0 failures, 0 errors, 4 skipped
+        antlr_qa: all four configured grammar roots completed with BUILD SUCCESS
+    gate: Port parser tests first; implement only cases that fail on clean 3.6.2.
+
+  - id: RPS-BINLOG-LC-TIME-NAMES
+    name: lc_time_names parsing and source metadata
+    disposition: MIXED_REBASED_UNCOMMITTED
+    commits:
+      - 4d1eaab04c
+      - c0b185ed89
+      - 3bad97a272
+      - 7abd3bbc2c
+    upstream_behaviors:
+      - MySQL and MariaDB parse SET @@session.lc_time_names without customization
+      - MySQL and MariaDB parse leading client comments followed by ALTER TABLE DROP INDEX without SQL rewriting
+      - MySQL 3.6 parses CN_SESSION_VARIABLES_ADMIN as a generic privilege identifier
+    rebased_behaviors:
+      - retain Query Event status variables with the 0.41.2 binlog client API
+      - parse lc_time_names and emit the compatible optional source.lc_time string field
+      - clear source.lc_time when a Query Event does not carry lc_time_names
+      - recognize CN_SESSION_VARIABLES_ADMIN in the MariaDB grammar
+    dependency_finding: io.debezium:mysql-binlog-connector-java:0.41.2 no longer exposes QueryEventData.statusVars; Task 4 first used connector-local capture, then Task 5 consolidated it into the aligned 0.41.2 RPS fork required for compressed events
+    red_evidence:
+      - clean 3.6 test compilation failed because BinlogSourceInfo had no lc_time contract and the 0.41.2 QueryEventData API had no status variables
+      - MariaDB rejected GRANT CN_SESSION_VARIABLES_ADMIN while MySQL accepted it
+    green_evidence:
+      focused_binlog: 4 tests, 0 failures, 0 errors, 0 skipped
+      binlog_non_docker: 80 tests, 0 failures, 0 errors, 0 skipped
+      mysql_parser_and_source: 227 tests, 0 failures, 0 errors, 3 skipped
+      mariadb_parser_and_source: 220 tests, 0 failures, 0 errors, 0 skipped
+      antlr_qa: all four configured grammar roots completed with BUILD SUCCESS
+    gate: Preserve emitted source-schema compatibility and validate session SQL parsing.
+
+  - id: RPS-BINLOG-COMPRESSED
+    name: MariaDB compressed row and query events
+    disposition: REDESIGNED_UNCOMMITTED
+    commits:
+      - 77f114315e
+      - 7482d01c65
+      - 2367178a87
+      - 7aa7314449
+    external_dependency: io.debezium:dataknown-mysql-binlog-connector-java:0.41.2-rps.1-SNAPSHOT
+    dependency_worktree: /Users/tuchief/workspace/mysql-binlog-connector-java-0.41-rps
+    upstream_behaviors:
+      - MySQL TRANSACTION_PAYLOAD support remains provided by upstream 0.41.2
+      - existing MariaDB TransactionPayloadIT passed with small rows only because they stayed below the compression threshold
+    rebased_behaviors:
+      - MariaDB event types 165 through 171
+      - strict zlib decompression with big-endian original-length parsing
+      - V1 and V2 compressed row reconstruction with distinct post-header handling
+      - compressed Query Event decoding with retained status variables
+      - compatibility-mode propagation into compressed row delegates
+      - Debezium handlers and custom row converters for all six compressed row event types
+    excluded_historical_changes:
+      - BinaryLogClient timeout doubling
+      - Lombok, Guava, and Hutool dependencies
+      - standalone CDC listener and ad-hoc example classes
+    red_evidence:
+      - upstream 0.41.2 has no QUERY_COMPRESSED or compressed row EventType values
+      - a long compressed DDL produced no Debezium schema record and timed out after 30 seconds
+      - the first real-client DATETIME run returned Date instead of compatibility-mode epoch long
+    green_evidence:
+      client_focused: 15 tests, 0 failures, 0 errors, 0 skipped
+      client_unit_suite: 127 tests, 0 failures, 0 errors, 0 skipped
+      client_mariadb_10_6: compressed query plus write, update, delete, and DATETIME passed
+      debezium_transaction_payload_mariadb_11_4_3: 3 tests, 0 failures, 0 errors, 0 skipped; logs confirmed WRITE_ROWS_COMPRESSED_V1 on restart
+      external_mariadb_11_8_5_replica: exact event types 165 through 168 decoded from the supplied replica binlog; topology and 300-second delay restored
+      mysql_8_4_12_amd64_emulated: TransactionPayloadIT 3 of 3 and GTID MySqlRestartIT 1 of 1 passed; containers removed
+      dependency_tree: only dataknown-mysql-binlog-connector-java 0.41.2-rps.1-SNAPSHOT is resolved by binlog, MySQL, and MariaDB modules
+      clean_replay_build: client 127 tests passed and all 22 selected Debezium modules built from an initially empty Maven repository after one transient download resume
+    remaining_gate: Real event types 169 through 171 require a vendor server or captured binlog that emits V2; release publication also requires pinned dependency metadata and archive-normalization policy.
+    gate: Keep V1 server evidence, V2 byte-fixture evidence, and release reproducibility claims distinct.
+
+  - id: RPS-MARIADB-DDL
+    name: MariaDB extended DDL grammar
+    disposition: MIXED_REBASED_UNCOMMITTED
+    commits:
+      - 36841110cf
+      - 5ef49dce0d
+      - 2ce501f529
+      - e1f85b26bd
+      - f576299f47
+      - fd9216251b
+      - 947f80fc0a
+    behaviors:
+      - schema-qualified data types and functions
+      - ALTER TABLE ADD PARTITION PARTITIONS
+      - DROP COLUMN CASCADE
+      - COMMENT ON COLUMN
+      - system-versioned tables
+    qualification:
+      upstream:
+        - behavior: schema-qualified function parsed through the generic fullId path on clean 3.6.2
+          note: an explicit scalar-function branch was still required after adding the dedicated mariadb_schema token
+        - behavior: WITH SYSTEM VERSIONING grammar syntax
+          note: clean 3.6.2 parsed the clause but did not retain a table attribute or accept implicit binlog columns
+      rebased:
+        - behavior: mariadb_schema-qualified data types plus NUMBER, VARCHAR2, and SYSDATE aliases
+          commits: [36841110cf, 5ef49dce0d]
+        - behavior: ALTER TABLE ADD PARTITION PARTITIONS count
+          commits: [2ce501f529]
+        - behavior: ALTER TABLE DROP COLUMN CASCADE
+          commits: [e1f85b26bd]
+        - behavior: COMMENT ON COLUMN grammar and stateful table-model listener
+          commits: [f576299f47, fd9216251b]
+        - behavior: system-versioned table attribute and exactly two implicit trailing binlog columns
+          commits: [947f80fc0a]
+      excluded_from_this_rebase:
+        - unrelated skip-unparseable-DDL log-message changes from f576299f47
+      evidence:
+        focused: 12 tests, 0 failures, 0 errors, 0 skipped
+        mariadb_non_docker: 303 tests, 0 failures, 0 errors, 0 skipped
+        binlog_non_docker: 76 tests, 0 failures, 0 errors, 0 skipped
+        antlr_qa: all four configured grammar roots completed with BUILD SUCCESS
+        mariadb_11_8_9: explicit and implicit system-versioned snapshot and streaming tests passed 2 of 2
+    gate: Classify each behavior independently as UPSTREAM or REBASE after test execution.
+
+  - id: RPS-CDC-DIAGNOSTICS
+    name: Bounded DDL and DML diagnostic logging
+    disposition: REBASE_IMPLEMENTED_UNCOMMITTED
+    commits:
+      - b1cbf7bdbc
+      - 1db41d8c64
+      - cd1eeefe3c
+      - 94ccd1555c
+      - a4dd2b833f
+      - 88646c97f4
+      - fa5cfc06fd
+      - f6e582fa71
+      - 961d47864f
+      - 63f39cce1a
+      - 95c9613ceb
+      - 6e2b848129
+      - 242585dcf1
+      - d4928c1e19
+      - 747962cf17
+    evidence:
+      - FailureLogLimiter and safe logging APIs passed 10 focused tests, including expiry and concurrent signature bounds
+      - TableSchema WARN conversion no longer falls through or emits repeated warnings
+      - ErrorHandler logs and queues only the first producer failure
+      - dedicated DML diagnostics omit row payloads and use reliable processed/reader positions
+      - dedicated DDL diagnostics bound and flatten previews, redact account credentials, and contain logging failures
+      - connector-common 421, binlog 90, MySQL 397, and MariaDB 323 non-Docker tests passed; MySQL/MariaDB architecture tests passed 2 each
+    remaining_gate: Controlled live failure injection, packaged RPS log routing, and throughput/allocation comparison.
+    gate: Re-map core classes to the 3.6 connector-common layout and keep failure propagation unchanged.
+
+  - id: RPS-BINLOG-EVENT-TIME
+    name: Last binlog event timestamp and regression prevention
+    disposition: REBASE_IMPLEMENTED_UNCOMMITTED
+    commits:
+      - 769833a102
+      - bc6d3b0221
+    evidence:
+      - non-heartbeat non-zero event timestamps are recorded before event routing
+      - last_binlog_event_ts_ms is persisted independently and never regresses
+      - MySQL and MariaDB loaders select the newer legacy-seconds or millisecond value
+      - overflow in legacy seconds-to-milliseconds conversion fails explicitly
+      - five focused inherited tests passed for each of MySQL and MariaDB
+    remaining_gate: Live connector stop/restart from copied offset state and packaged RPS observation.
+    gate: Verify restart serialization and source timestamp monotonicity.
+
+  - id: RPS-MARIADB-UPSTREAM-BACKPORTS
+    name: CDC correctness and performance fixes backported from later Debezium releases
+    disposition: MIXED_QUALIFIED
+    commits:
+      - 5694e7c59b
+    behaviors:
+      - identifier quoting for embedded backticks
+      - MariaDB failover GTID containment
+      - UUID and VECTOR
+      - Kafka Schema History concurrent recovery and snapshot buffering
+      - BoundedConcurrentHashMap performance
+      - connector task poll allocation
+      - extended system-versioned table coverage
+    qualification:
+      identifier_quoting_for_embedded_backticks:
+        decision: UPSTREAM_INTEGRATION_CONFIRMED
+        evidence: JdbcConnection unit guard plus MariaDB 11.8.9 SpecialCharactersIT passed
+      mariadb_failover_gtid_containment:
+        decision: UPSTREAM_INTEGRATION_CONFIRMED
+        evidence:
+          - 9 focused MariaDbGtidSet tests passed on clean 3.6.2
+          - external MariaDB 11.8.5 connector moved from server 136 to replica 137 using the same GTID offset and schema history
+          - post-switch primary write was captured from replica binlog with no filename-position dependency and no event-time regression
+          - source topology restored with primary writable, replica read-only, IO/SQL healthy, SQL_Delay=300, and no test schema
+          - connector remained fixed on replica 137 through replica-to-primary promotion and failback, capturing one ordered incremental marker in each phase without restart
+          - new 0-137 GTID origin replicated back to server 136 and final topology was restored at 0-136-23469 with no test schema
+        remaining_gate: RPS process-level endpoint management, restart behavior, and unplanned-failure recovery remain separate acceptance gates.
+      uuid_and_vector:
+        decision: UPSTREAM_INTEGRATION_CONFIRMED
+        evidence: MariaDB 11.8.9 UuidColumnIT and both MariaVectorIT scenarios passed
+      kafka_schema_history_concurrent_recovery_and_snapshot_buffering:
+        decision: MIXED
+        upstream_evidence:
+          - real Kafka concurrent recovery passed while another consumer held the group partition
+          - 4 Kafka producer-buffering regression tests passed
+        rebase:
+          behavior: preserve the primary snapshot failure and suppress a simultaneous buffer-drain failure
+          red_evidence: clean 3.6.2 lacked SchemaHistory.BufferingScope and buffering()
+          status: REBASE_IMPLEMENTED_UNCOMMITTED
+          implementation: add a try-with-resources buffering scope and use it in generic relational and binlog snapshot paths
+      bounded_concurrent_hash_map_performance:
+        decision: UPSTREAM_UNIT_CONFIRMED
+        evidence: 2 deterministic BoundedConcurrentHashMapRegressionTest tests passed
+        remaining_gate: connector soak and allocation comparison
+      connector_task_poll_allocation:
+        decision: UPSTREAM_UNIT_CONFIRMED
+        evidence: BaseSourceTaskTest.shouldConvertPolledEventsInOrderToMutableList
+        remaining_gate: connector throughput and allocation comparison
+      extended_system_versioned_table_coverage:
+        decision: UPSTREAM_INTEGRATION_CONFIRMED
+        evidence: MariaDB 11.8.9 snapshot and streaming SystemVersionedTableIT passed
+    gate: Adapt and run the existing regression tests on clean 3.6.2; do not copy production code when tests pass.
+
+  - id: RPS-ORACLE-TXNAME
+    name: Oracle transaction name source field
+    disposition: REBASE_IMPLEMENTED_UNCOMMITTED
+    commits:
+      - bd7cc1feec
+    consumer: RPS Oracle self-written transaction filter
+    evidence:
+      - source schema and struct expose optional source.txName
+      - LogMiner query and dynamic column indexes read TX_NAME without changing optional resolver counts
+      - buffered transactions retain transaction name across mining windows in memory, Ehcache, and Infinispan metadata
+      - buffered commit dispatch sets and clears the cached transaction name around every emitted change event
+      - Oracle unit suite passed 436 tests with 3 skips plus 2 architecture tests
+      - Oracle 11.2.0.4 proved that a restarted mining window can return null TX_NAME on COMMIT even when the prior DML row has the name
+      - cross-window unit coverage proves the cached DML transaction name is used when the COMMIT row is null
+      - live mutation check failed with null transaction name and passed again after restoration
+      - Ehcache transaction serialization round-trip and legacy no-txName cache compatibility passed
+      - Oracle 11.2.0.4 live 5KB CLOB savepoint rollback preserved the committed value, rollback marker, and transaction name
+      - memory and embedded Infinispan savepoint/null-LOB processor tests passed
+      - two-node Oracle 11.2.0.4 RAC passed node-2-write/node-1-mine and reverse txName/thread assertions with ZHS16GBK Chinese SQL_REDO
+      - RAC LogFileCollector selection contained both redo threads with no duplicate thread/sequence identity
+      - full RAC row-path suite passed 5 tests after bounded repeated-window handling for transient remote COMMIT visibility
+    remaining_gate: Full Embedded Engine emission and RPS self-written transaction filtering from copied offset and schema-history state.
+    gate: Preserve source.txName schema, extraction, offset lifecycle, and RPS filtering behavior.
+
+  - id: RPS-ORACLE-10G
+    name: Oracle 10g LogMiner compatibility
+    disposition: REBASE_IMPLEMENTED_UNCOMMITTED
+    commits:
+      - f838ded6ae
+    evidence:
+      - SQL contract tests cover SYS-qualified LogMiner add-file, start-session, and dictionary calls
+      - mocked Oracle 10g V$THREAD test covers LAST_REDO fields documented for 10g
+      - SYS-qualified start/end LogMiner calls executed successfully on Oracle 11.2.0.4
+      - Oracle 10.2.0.4 reproduced unqualified DBMS_LOGMNR failure with PLS-00201 and resolved the SYS-qualified package
+      - Oracle 10.2.0.4 exposed no START_SCN, COMMIT_SCN, START_TIMESTAMP, or CLIENT_ID in V_$LOGMNR_CONTENTS; version-aware aliases and indexes passed focused tests
+      - Oracle 10g rejects explicit client-ID filters instead of silently ignoring an unavailable column
+      - Oracle 10.2.0.4 live LogMiner acceptance passed 4 tests including txName, cross-window, CLOB rollback, LAST_REDO fields, and ZHS16GBK Chinese SQL_REDO
+      - post-test cleanup confirmed no unique test table and no V$LOGMNR_LOGS entries remained
+    remaining_gate: Repeat with the production connector account/grants and validate full Embedded Engine continuation plus RPS filtering in Task 7; RAC failover and RAW/HEXTORAW remain separate gates.
+    gate: Validate the exact supported Oracle 10g SQL paths against 3.6 before implementation.
+
+g0_status:
+  state: CLOSED
+  closed_on: 2026-09-16
+  evidence:
+    - 44 of 44 matching Nexus JARs downloaded and matched repository SHA-256 metadata
+    - all historical releases are JAR-only with zero POM assets
+    - every JAR maps to an exact source boundary using publication time, extracted class/resource deltas, and Git history
+    - all reachable RPS refs were scanned; 3.0.3-260706.Final is the sole published coordinate with no consumer
+  report: docs/rps-migration/g0-nexus-artifact-inventory-2026-09-16.md

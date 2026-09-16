@@ -13,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,8 +35,10 @@ import org.junit.jupiter.api.Test;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.junit.relational.TestRelationalDatabaseConfig;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
+import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Partition;
@@ -91,6 +94,28 @@ class BaseSourceTaskTest {
                 valueSchema, new Struct(valueSchema).put("name", "test"));
 
         assertTrue(baseSourceTask.containsChangeDataMessages(List.of(sourceRecord)));
+    }
+
+    @Test
+    void shouldConvertPolledEventsInOrderToMutableList() throws InterruptedException {
+        SourceRecord first = new SourceRecord(Collections.emptyMap(), Collections.emptyMap(), "topic", null, "first");
+        SourceRecord second = new SourceRecord(Collections.emptyMap(), Collections.emptyMap(), "topic", null, "second");
+        ChangeEventQueue<DataChangeEvent> queue = new ChangeEventQueue.Builder<DataChangeEvent>()
+                .pollInterval(Duration.ofMillis(1))
+                .maxBatchSize(10)
+                .maxQueueSize(10)
+                .loggingContextSupplier(() -> LoggingContext.forConnector("test", "test", "test"))
+                .build();
+        queue.enqueue(new DataChangeEvent(first));
+        queue.enqueue(new DataChangeEvent(second));
+
+        List<SourceRecord> converted = baseSourceTask.pollRecords(queue);
+
+        assertThat(converted).containsExactly(first, second);
+        assertThat(converted.get(0)).isSameAs(first);
+        converted.add(new SourceRecord(Collections.emptyMap(), Collections.emptyMap(), "topic", null, "third"));
+        assertThat(converted).hasSize(3);
+        assertThat(baseSourceTask.pollRecords(queue)).isEmpty();
     }
 
     @Test

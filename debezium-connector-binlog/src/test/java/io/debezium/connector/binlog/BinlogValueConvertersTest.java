@@ -142,9 +142,14 @@ public abstract class BinlogValueConvertersTest<C extends SourceConnector> imple
         Column colA = table.columnWithName("A");
         Field fieldA = new Field(colA.name(), -1, converters.schemaBuilder(colA).optional().build());
         assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
+        assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
+        assertThat(converters.converter(colA, fieldA).convert(INVALID_JSON)).isEqualTo(null);
         assertThat(logInterceptor.containsWarnMessage("Failed to parse and read a JSON value on 'A JSON DEFAULT VALUE NULL'"))
                 .describedAs("Expected null value of nullable column when parsing invalid json with WARN mode")
                 .isTrue();
+        assertThat(logInterceptor.getLoggingEvents("Failed to parse and read a JSON value on 'A JSON DEFAULT VALUE NULL'"))
+                .hasSize(1);
+        assertThat(logInterceptor.containsWarnMessage("[2, 1, 0, 91")).isFalse();
 
         // ColB - NOT NUll column
         Column colB = table.columnWithName("B");

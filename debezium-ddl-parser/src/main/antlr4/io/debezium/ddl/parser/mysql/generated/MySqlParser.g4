@@ -51,6 +51,7 @@ simpleStatement
     alterStatement
     | createStatement
     | dropStatement
+    | purgeTableStatement
     | renameTableStatement
     | truncateTableStatement
     | importStatement
@@ -778,7 +779,7 @@ dropProcedure
     ;
 
 dropIndex
-    : onlineOption? type = INDEX_SYMBOL indexRef ON_SYMBOL tableRef indexLockAndAlgorithm?
+    : onlineOption? type = INDEX_SYMBOL indexRef (ON_SYMBOL tableRef)? indexLockAndAlgorithm?
     ;
 
 dropLogfileGroup
@@ -797,7 +798,7 @@ dropServer
     ;
 
 dropTable
-    : TEMPORARY_SYMBOL? type = (TABLE_SYMBOL | TABLES_SYMBOL) ifExists? tableRefList (
+    : TEMPORARY_SYMBOL? type = (TABLE_SYMBOL | TABLES_SYMBOL) ifExists? tableRefList recyclebinVersionClause? (
         RESTRICT_SYMBOL
         | CASCADE_SYMBOL
     )?
@@ -832,7 +833,7 @@ dropUndoTablespace
 //----------------------------------------------------------------------------------------------------------------------
 
 renameTableStatement
-    : RENAME_SYMBOL (TABLE_SYMBOL | TABLES_SYMBOL) renamePair (
+    : RENAME_SYMBOL (TABLE_SYMBOL | TABLES_SYMBOL)? renamePair (
         COMMA_SYMBOL renamePair
     )*
     ;
@@ -844,7 +845,15 @@ renamePair
 //----------------------------------------------------------------------------------------------------------------------
 
 truncateTableStatement
-    : TRUNCATE_SYMBOL TABLE_SYMBOL? tableRef
+    : TRUNCATE_SYMBOL TABLE_SYMBOL? tableRef recyclebinVersionClause?
+    ;
+
+purgeTableStatement
+    : PURGE_SYMBOL TABLE_SYMBOL? tableRef recyclebinVersionClause?
+    ;
+
+recyclebinVersionClause
+    : FOR_SYMBOL RECYCLEBIN_VERSION_SYMBOL textStringLiteral
     ;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1513,7 +1522,8 @@ lockOption
     ;
 
 xaStatement
-    : XA_SYMBOL (
+    : XA_PREPARED_LIST_SYMBOL xid
+    | XA_SYMBOL (
         (START_SYMBOL | BEGIN_SYMBOL) xid (JOIN_SYMBOL | RESUME_SYMBOL)?
         | END_SYMBOL xid (SUSPEND_SYMBOL (FOR_SYMBOL MIGRATE_SYMBOL)?)?
         | PREPARE_SYMBOL xid
@@ -4246,7 +4256,7 @@ insertIdentifier
     ;
 
 indexName
-    : identifier
+    : qualifiedIdentifier
     ;
 
 indexRef
@@ -4718,6 +4728,7 @@ identifierKeywordsAmbiguous2Labels
     | TRUNCATE_SYMBOL
     | UNICODE_SYMBOL
     | UNINSTALL_SYMBOL
+    | XA_PREPARED_LIST_SYMBOL
     | XA_SYMBOL
     ;
 
@@ -5022,6 +5033,7 @@ identifierKeywordsUnambiguous
         | READ_ONLY_SYMBOL
         | REBUILD_SYMBOL
         | RECOVER_SYMBOL
+        | RECYCLEBIN_VERSION_SYMBOL
         | REDO_BUFFER_SIZE_SYMBOL
         | REDUNDANT_SYMBOL
         | REFERENCE_SYMBOL
@@ -5546,6 +5558,7 @@ roleOrLabelKeyword
         | READ_ONLY_SYMBOL
         | REBUILD_SYMBOL
         | RECOVER_SYMBOL
+        | RECYCLEBIN_VERSION_SYMBOL
         | REDO_BUFFER_SIZE_SYMBOL
         | REDUNDANT_SYMBOL
         | RELAY_SYMBOL

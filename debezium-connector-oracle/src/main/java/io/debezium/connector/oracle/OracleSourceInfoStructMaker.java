@@ -35,6 +35,7 @@ public class OracleSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
                 .field(SourceInfo.COMMIT_TIMESTAMP_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(SourceInfo.START_SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.START_TIMESTAMP_KEY, Schema.OPTIONAL_INT64_SCHEMA)
+                .field(SourceInfo.TRANSACTION_NAME_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.TXSEQ_KEY, Schema.OPTIONAL_INT64_SCHEMA).build();
     }
 
@@ -51,6 +52,7 @@ public class OracleSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
                 .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.tableSchema())
                 .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.table())
                 .put(SourceInfo.TXID_KEY, sourceInfo.getTransactionId())
+                .put(SourceInfo.TRANSACTION_NAME_KEY, sourceInfo.getTransactionName())
                 .put(SourceInfo.TXSEQ_KEY, sourceInfo.getTransactionSequence())
                 .put(SourceInfo.EVENT_SCN_KEY, eventScn);
 

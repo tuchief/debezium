@@ -93,7 +93,7 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
      * Lightweight metadata record for a deferred transaction that has not yet emitted any DML events.
      */
     private record DeferredTransaction(String transactionId, Scn startScn, Instant changeTime,
-            String userName, String clientId, int redoThreadId) {
+            String userName, String clientId, int redoThreadId, String transactionName) {
     }
 
     private record MatchedTransaction(String transactionId, Scn startScn, Instant changeTime, boolean deferred) {
@@ -106,7 +106,8 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
                 deferredTransaction.changeTime(),
                 deferredTransaction.userName(),
                 deferredTransaction.redoThreadId(),
-                deferredTransaction.clientId());
+                deferredTransaction.clientId(),
+                deferredTransaction.transactionName());
     }
 
     public BufferedLogMinerStreamingChangeEventSource(OracleConnectorConfig connectorConfig,
@@ -119,7 +120,7 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
                                                       LogMinerStreamingChangeEventSourceMetrics streamingMetrics) {
         super(connectorConfig, connectionFactory, dispatcher, errorHandler, clock, schema, jdbcConfig, streamingMetrics);
 
-        this.queryString = new BufferedLogMinerQueryBuilder(connectorConfig).getQuery();
+        this.queryString = new BufferedLogMinerQueryBuilder(connectorConfig, extendedTransactionMetadataAvailable).getQuery();
         this.cacheProvider = createCacheProvider(connectorConfig);
         this.transactionFactory = createTransactionFactory(connectorConfig);
     }
@@ -403,7 +404,7 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
                 deferredTransactions.computeIfAbsent(transactionId, id -> {
                     LOGGER.trace("Deferring transaction {} start event.", id);
                     return new DeferredTransaction(id, event.getScn(), event.getChangeTime(),
-                            event.getUserName(), event.getClientId(), event.getThread());
+                            event.getUserName(), event.getClientId(), event.getThread(), event.getTransactionName());
                 });
                 return;
             }
@@ -518,6 +519,9 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
                 getOffsetContext().setEventCommitScn(row.getScn());
                 getOffsetContext().setTransactionId(transactionId);
                 getOffsetContext().setTransactionSequence(eventIndex);
+                getOffsetContext().setTransactionName(transaction.getTransactionName() != null
+                        ? transaction.getTransactionName()
+                        : row.getTransactionName());
                 getOffsetContext().setUserName(transaction.getUserName());
                 getOffsetContext().setSourceTime(event.getChangeTime().minusSeconds(databaseOffset.getTotalSeconds()));
                 getOffsetContext().setTableId(event.getTableId());
@@ -569,6 +573,7 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
 
                 // Clear redo SQL
                 getOffsetContext().setRedoSql(null);
+                getOffsetContext().setTransactionName(null);
             };
             try (TransactionCommitConsumer commitConsumer = new TransactionCommitConsumer(delegate, getConfig(), getSchema())) {
                 getTransactionCache().forEachEvent(transaction, (event, rolledBack) -> {
@@ -1203,6 +1208,7 @@ public class BufferedLogMinerStreamingChangeEventSource extends AbstractLogMiner
             }
         }
 
+        transaction.setTransactionName(event.getTransactionName());
         final int eventId = transaction.getNextEventId();
         if (!getTransactionCache().containsTransactionEvent(transaction, eventId)) {
             // Add new event at eventId offset

@@ -48,7 +48,11 @@ public class CreateUniqueIndexParserListener extends MySqlParserBaseListener {
                 if (!tableEditor.hasPrimaryKey() && parser.isTableUniqueIndexIncluded(keyList, tableEditor)) {
                     parser.parseUniqueIndexColumnNames(keyList, tableEditor);
                     parser.databaseTables().overwriteTable(tableEditor.create());
-                    parser.signalCreateIndex(parser.parseName(ctx.indexName().identifier()), tableId, ctx);
+                    MySqlParser.QualifiedIdentifierContext qualifiedIndexName = ctx.indexName().qualifiedIdentifier();
+                    MySqlParser.IdentifierContext indexName = qualifiedIndexName.dotIdentifier() == null
+                            ? qualifiedIndexName.identifier()
+                            : qualifiedIndexName.dotIdentifier().identifier();
+                    parser.signalCreateIndex(parser.parseName(indexName), tableId, ctx);
                 }
             }
             else {

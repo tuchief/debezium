@@ -75,9 +75,17 @@ public class SourceInfoTest {
                 .field("commit_ts_ms", Schema.OPTIONAL_INT64_SCHEMA)
                 .field("start_scn", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("start_ts_ms", Schema.OPTIONAL_INT64_SCHEMA)
+                .field("txName", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("txSeq", Schema.OPTIONAL_INT64_SCHEMA)
                 .build();
 
         VerifyRecord.assertConnectSchemasAreEqual(null, source.schema(), schema);
+    }
+
+    @Test
+    void transactionNameIsExposedForRpsSelfWrittenTransactionFiltering() {
+        source.setTransactionName("RPS_ORIGIN");
+
+        assertThat(source.struct().getString("txName")).isEqualTo("RPS_ORIGIN");
     }
 }

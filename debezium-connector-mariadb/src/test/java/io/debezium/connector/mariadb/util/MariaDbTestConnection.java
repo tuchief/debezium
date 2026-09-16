@@ -60,7 +60,7 @@ public class MariaDbTestConnection extends BinlogTestConnection {
 
     @Override
     public void setBinlogCompressionOn() throws SQLException {
-        execute("set global log_bin_compress=ON;");
+        execute("set global log_bin_compress_min_len=10;", "set global log_bin_compress=ON;");
     }
 
     @Override

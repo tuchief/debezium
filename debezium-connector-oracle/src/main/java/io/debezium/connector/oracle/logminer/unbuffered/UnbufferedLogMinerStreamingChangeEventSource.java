@@ -78,7 +78,7 @@ public class UnbufferedLogMinerStreamingChangeEventSource extends AbstractLogMin
                                                         Configuration jdbcConfig,
                                                         LogMinerStreamingChangeEventSourceMetrics metrics) {
         super(connectorConfig, connectionFactory, dispatcher, errorHandler, clock, schema, jdbcConfig, metrics);
-        this.miningQuery = new UnbufferedLogMinerQueryBuilder(connectorConfig).getQuery();
+        this.miningQuery = new UnbufferedLogMinerQueryBuilder(connectorConfig, extendedTransactionMetadataAvailable).getQuery();
         this.includeSql = connectorConfig.isLogMiningIncludeRedoSql();
         this.accumulator = new TransactionCommitConsumer(this::dispatchEvent, connectorConfig, schema);
         this.resumePositionProvider = new ResumePositionProvider(connectorConfig, getJdbcConfiguration());

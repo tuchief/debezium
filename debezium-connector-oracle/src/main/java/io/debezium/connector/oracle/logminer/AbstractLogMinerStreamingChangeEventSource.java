@@ -32,6 +32,7 @@ import io.debezium.connector.oracle.OracleConnection;
 import io.debezium.connector.oracle.OracleConnection.NonRelationalTableException;
 import io.debezium.connector.oracle.OracleConnectorConfig;
 import io.debezium.connector.oracle.OracleDatabaseSchema;
+import io.debezium.connector.oracle.OracleDatabaseVersion;
 import io.debezium.connector.oracle.OracleOffsetContext;
 import io.debezium.connector.oracle.OraclePartition;
 import io.debezium.connector.oracle.OracleSchemaChangeEventEmitter;
@@ -117,6 +118,7 @@ public abstract class AbstractLogMinerStreamingChangeEventSource
     private final LogMinerStreamingChangeEventSourceMetrics metrics;
     private final JdbcConfiguration jdbcConfiguration;
     private final boolean useContinuousMining;
+    protected final boolean extendedTransactionMetadataAvailable;
     private final LogFileCollector logCollector;
     private final LogMinerSessionContext sessionContext;
     private final LogMinerDmlParser dmlParser;
@@ -152,13 +154,15 @@ public abstract class AbstractLogMinerStreamingChangeEventSource
         this.connectorConfig = connectorConfig;
         this.connectionFactory = connectionFactory;
         this.streamingConnection = connectionFactory.streamingConnectionFactory().mainConnection();
+        final OracleDatabaseVersion oracleVersion = streamingConnection.getOracleVersion();
+        this.extendedTransactionMetadataAvailable = oracleVersion == null || oracleVersion.getMajor() >= 11;
         this.dispatcher = dispatcher;
         this.errorHandler = errorHandler;
         this.clock = clock;
         this.schema = schema;
         this.metrics = metrics;
         this.jdbcConfiguration = JdbcConfiguration.adapt(jdbcConfig);
-        this.useContinuousMining = connectorConfig.isLogMiningContinuousMining(streamingConnection.getOracleVersion());
+        this.useContinuousMining = connectorConfig.isLogMiningContinuousMining(oracleVersion);
         this.logCollector = new LogFileCollector(connectorConfig, streamingConnection);
         this.sessionContext = new LogMinerSessionContext(streamingConnection, useContinuousMining, connectorConfig.getLogMiningStrategy(),
                 connectorConfig.getLogMiningPathToDictionary());
@@ -169,7 +173,7 @@ public abstract class AbstractLogMinerStreamingChangeEventSource
         this.xmlBeginParser = new XmlBeginParser();
         this.tableFilter = connectorConfig.getTableFilters().dataCollectionFilter();
         this.archiveDestinationNames = connectorConfig.getArchiveDestinationNameResolver().getDestinationNames(streamingConnection);
-        this.columnIndexes = LogMinerColumnIndexes.fromConfig(connectorConfig);
+        this.columnIndexes = LogMinerColumnIndexes.fromConfig(connectorConfig, extendedTransactionMetadataAvailable);
     }
 
     @Override

@@ -40,10 +40,16 @@ public abstract class AbstractLogMinerQueryBuilder implements LogMinerQueryBuild
 
     protected final OracleConnectorConfig connectorConfig;
     protected final boolean useCteQuery;
+    protected final boolean extendedTransactionMetadataAvailable;
 
     public AbstractLogMinerQueryBuilder(OracleConnectorConfig connectorConfig) {
+        this(connectorConfig, true);
+    }
+
+    public AbstractLogMinerQueryBuilder(OracleConnectorConfig connectorConfig, boolean extendedTransactionMetadataAvailable) {
         this.connectorConfig = connectorConfig;
         this.useCteQuery = connectorConfig.isLogMiningUseCteQuery();
+        this.extendedTransactionMetadataAvailable = extendedTransactionMetadataAvailable;
     }
 
     @Override
@@ -112,13 +118,13 @@ public abstract class AbstractLogMinerQueryBuilder implements LogMinerQueryBuild
         columns.add("DATA_OBJ#");
         columns.add("DATA_OBJV#");
         columns.add("DATA_OBJD#");
-        columns.add("START_SCN");
-        columns.add("COMMIT_SCN");
+        columns.add(extendedTransactionMetadataAvailable ? "START_SCN" : "NULL AS START_SCN");
+        columns.add(extendedTransactionMetadataAvailable ? "COMMIT_SCN" : "CSCN AS COMMIT_SCN");
         columns.add("SEQUENCE#");
 
         // NOTE: Optional columns should be added here
         if (connectorConfig.isLogMiningBufferTrackStartTimestamp()) {
-            columns.add("START_TIMESTAMP");
+            columns.add(extendedTransactionMetadataAvailable ? "START_TIMESTAMP" : "NULL AS START_TIMESTAMP");
         }
         if (connectorConfig.isLogMiningBufferTrackCommitTimestamp()) {
             columns.add("COMMIT_TIMESTAMP");
@@ -129,9 +135,10 @@ public abstract class AbstractLogMinerQueryBuilder implements LogMinerQueryBuild
         if (connectorConfig.isLogMiningBufferTrackUsername()) {
             columns.add("USERNAME");
         }
-        if (connectorConfig.isLogMiningBufferTrackClientId()) {
+        if (extendedTransactionMetadataAvailable && connectorConfig.isLogMiningBufferTrackClientId()) {
             columns.add("CLIENT_ID");
         }
+        columns.add("TX_NAME");
 
         return String.join(", ", columns) + " ";
     }
@@ -194,6 +201,13 @@ public abstract class AbstractLogMinerQueryBuilder implements LogMinerQueryBuild
      * @return the client id predicate, will be an empty string if no predicate is generated, never {@code null}
      */
     protected String getClientIdPredicate() {
+        if (!extendedTransactionMetadataAvailable) {
+            if (!connectorConfig.getLogMiningClientIdIncludes().isEmpty() ||
+                    !connectorConfig.getLogMiningClientIdExcludes().isEmpty()) {
+                throw new DebeziumException("CLIENT_ID filters are not supported because this Oracle version does not expose V$LOGMNR_CONTENTS.CLIENT_ID");
+            }
+            return EMPTY;
+        }
         if (!LogMiningQueryFilterMode.NONE.equals(connectorConfig.getLogMiningQueryFilterMode())) {
             // Only filter client ids when using IN and REGEX modes
             // Client id filters always use an IN-clause predicate

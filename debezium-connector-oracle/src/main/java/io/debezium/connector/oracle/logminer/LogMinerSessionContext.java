@@ -100,7 +100,7 @@ public class LogMinerSessionContext implements AutoCloseable {
 
             LOGGER.debug("  Adding log file: {}", logFile);
             connection.executeWithoutCommitting("BEGIN sys.dbms_logmnr.add_logfile(LOGFILENAME => '" +
-                    logFile.getFileName() + "', OPTIONS => DBMS_LOGMNR.ADDFILE); END;");
+                    logFile.getFileName() + "', OPTIONS => SYS.DBMS_LOGMNR.ADDFILE); END;");
         }
     }
 
@@ -192,30 +192,30 @@ public class LogMinerSessionContext implements AutoCloseable {
      */
     public void writeDataDictionaryToRedoLogs() throws SQLException {
         LOGGER.trace("Building data dictionary");
-        connection.executeWithoutCommitting("BEGIN DBMS_LOGMNR_D.BUILD (options => DBMS_LOGMNR_D.STORE_IN_REDO_LOGS); END;");
+        connection.executeWithoutCommitting("BEGIN SYS.DBMS_LOGMNR_D.BUILD (options => SYS.DBMS_LOGMNR_D.STORE_IN_REDO_LOGS); END;");
     }
 
     private List<String> getMiningOptions(boolean committedDataOnly) {
         final List<String> miningOptions = new ArrayList<>();
         switch (strategy) {
             case CATALOG_IN_REDO:
-                miningOptions.add("DBMS_LOGMNR.DICT_FROM_REDO_LOGS");
-                miningOptions.add("DBMS_LOGMNR.DDL_DICT_TRACKING");
+                miningOptions.add("SYS.DBMS_LOGMNR.DICT_FROM_REDO_LOGS");
+                miningOptions.add("SYS.DBMS_LOGMNR.DDL_DICT_TRACKING");
             case DICTIONARY_FROM_FILE:
                 break;
             default:
-                miningOptions.add("DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG");
+                miningOptions.add("SYS.DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG");
         }
 
         if (useContinuousMining) {
-            miningOptions.add("DBMS_LOGMNR.CONTINUOUS_MINE");
+            miningOptions.add("SYS.DBMS_LOGMNR.CONTINUOUS_MINE");
         }
 
         if (committedDataOnly) {
-            miningOptions.add("DBMS_LOGMNR.COMMITTED_DATA_ONLY");
+            miningOptions.add("SYS.DBMS_LOGMNR.COMMITTED_DATA_ONLY");
         }
 
-        miningOptions.add("DBMS_LOGMNR.NO_ROWID_IN_STMT");
+        miningOptions.add("SYS.DBMS_LOGMNR.NO_ROWID_IN_STMT");
 
         return miningOptions;
     }

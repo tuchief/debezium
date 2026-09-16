@@ -24,9 +24,12 @@ import com.github.shyiko.mysql.binlog.network.SSLMode;
 import io.debezium.connector.binlog.BinlogConnectorConfig;
 import io.debezium.connector.binlog.BinlogStreamingChangeEventSource;
 import io.debezium.connector.binlog.jdbc.BinlogConnectorConnection;
+import io.debezium.connector.mariadb.antlr.MariaDbAntlrDdlParser;
 import io.debezium.connector.mariadb.metrics.MariaDbStreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
+import io.debezium.relational.Attribute;
+import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.snapshot.SnapshotterService;
 import io.debezium.util.Clock;
@@ -146,6 +149,17 @@ public class MariaDbStreamingChangeEventSource extends BinlogStreamingChangeEven
     @Override
     protected EventType getGtidEventType() {
         return EventType.MARIADB_GTID;
+    }
+
+    @Override
+    protected boolean isExpectedRowSize(Table table, Object[] row) {
+        return super.isExpectedRowSize(table, row) || hasExpectedSystemVersionedRowSize(table, row);
+    }
+
+    static boolean hasExpectedSystemVersionedRowSize(Table table, Object[] row) {
+        Attribute systemVersioned = table.attributeWithName(MariaDbAntlrDdlParser.SYSTEM_VERSIONED_TABLE_ATTRIBUTE);
+        return systemVersioned != null && Boolean.TRUE.equals(systemVersioned.asBoolean())
+                && row.length == table.columns().size() + 2;
     }
 
     @Override

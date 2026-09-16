@@ -131,6 +131,16 @@ public class LogMinerEventRowTest {
     }
 
     @Test
+    void shouldReadTransactionNameFromLogMinerRow() throws Exception {
+        when(resultSet.getString(27)).thenReturn("RPS_ORIGIN");
+
+        LogMinerEventRow row = LogMinerEventRow.fromResultSet(resultSet, null, defaultIndexes());
+
+        assertThat(row.getTransactionName()).isEqualTo("RPS_ORIGIN");
+        verify(resultSet).getString(27);
+    }
+
+    @Test
     void testTableId() throws Exception {
         when(resultSet.getString(8)).thenReturn("SCHEMA");
         when(resultSet.getString(7)).thenReturn("TABLE");

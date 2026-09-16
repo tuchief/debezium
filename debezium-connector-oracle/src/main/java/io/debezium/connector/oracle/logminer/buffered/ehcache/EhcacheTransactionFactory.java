@@ -20,11 +20,12 @@ public class EhcacheTransactionFactory implements TransactionFactory<EhcacheTran
     @Override
     public EhcacheTransaction createTransaction(LogMinerEventRow event) {
         return new EhcacheTransaction(event.getTransactionId(), event.getScn(), event.getChangeTime(),
-                event.getUserName(), event.getThread(), event.getClientId());
+                event.getUserName(), event.getThread(), event.getClientId(), event.getTransactionName());
     }
 
     @Override
-    public EhcacheTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId) {
-        return new EhcacheTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId);
+    public EhcacheTransaction createTransaction(String transactionId, Scn startScn, Instant changeTime, String userName, Integer redoThreadId, String clientId,
+                                                String transactionName) {
+        return new EhcacheTransaction(transactionId, startScn, changeTime, userName, redoThreadId, clientId, transactionName);
     }
 }

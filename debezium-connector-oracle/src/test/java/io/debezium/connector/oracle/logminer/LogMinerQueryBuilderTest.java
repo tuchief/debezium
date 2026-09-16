@@ -19,6 +19,7 @@ import static io.debezium.relational.RelationalDatabaseConnectorConfig.SCHEMA_IN
 import static io.debezium.relational.RelationalDatabaseConnectorConfig.TABLE_EXCLUDE_LIST;
 import static io.debezium.relational.RelationalDatabaseConnectorConfig.TABLE_INCLUDE_LIST;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,12 +34,14 @@ import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
+import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.oracle.OracleConnectorConfig;
 import io.debezium.connector.oracle.OracleConnectorConfig.LogMiningQueryFilterMode;
 import io.debezium.connector.oracle.junit.SkipWhenAdapterNameIsNot;
 import io.debezium.connector.oracle.logminer.buffered.BufferedLogMinerQueryBuilder;
+import io.debezium.connector.oracle.logminer.unbuffered.UnbufferedLogMinerQueryBuilder;
 import io.debezium.connector.oracle.util.TestHelper;
 import io.debezium.doc.FixFor;
 import io.debezium.relational.TableId;
@@ -129,6 +132,29 @@ public class LogMinerQueryBuilderTest {
     @FixFor("debezium/dbz#1663")
     public void testLogMinerQueryWithClientIdNotTracked() {
         assertQuery(new ConfigBuilder().with(OracleConnectorConfig.LOG_MINING_BUFFER_TRACK_CLIENT_ID, "false"));
+    }
+
+    @Test
+    void testOracle10QueryOmitsUnavailableClientIdColumn() {
+        final OracleConnectorConfig config = new ConfigBuilder().build();
+
+        assertThat(new BufferedLogMinerQueryBuilder(config, false).getQuery())
+                .contains("NULL AS START_SCN", "CSCN AS COMMIT_SCN", "NULL AS START_TIMESTAMP")
+                .doesNotContain("CLIENT_ID");
+        assertThat(new UnbufferedLogMinerQueryBuilder(config, false).getQuery())
+                .contains("NULL AS START_SCN", "CSCN AS COMMIT_SCN", "NULL AS START_TIMESTAMP", "CSCN >= ?")
+                .doesNotContain("CLIENT_ID");
+    }
+
+    @Test
+    void testOracle10QueryRejectsClientIdFilters() {
+        final OracleConnectorConfig config = new OracleConnectorConfig(TestHelper.defaultConfig()
+                .with(OracleConnectorConfig.LOG_MINING_CLIENTID_INCLUDE_LIST, "rps-client")
+                .build());
+
+        assertThatThrownBy(() -> new BufferedLogMinerQueryBuilder(config, false).getQuery())
+                .isInstanceOf(DebeziumException.class)
+                .hasMessageContaining("CLIENT_ID");
     }
 
     @Test
@@ -258,6 +284,7 @@ public class LogMinerQueryBuilderTest {
         if (config.isLogMiningBufferTrackClientId()) {
             columns.add("CLIENT_ID");
         }
+        columns.add("TX_NAME");
 
         return String.join(", ", columns) + " ";
     }

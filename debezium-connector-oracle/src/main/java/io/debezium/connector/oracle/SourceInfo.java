@@ -32,6 +32,7 @@ public class SourceInfo extends BaseSourceInfo {
     public static final String ROW_ID = "row_id";
     public static final String START_SCN_KEY = "start_scn";
     public static final String START_TIMESTAMP_KEY = "start_ts_ms";
+    public static final String TRANSACTION_NAME_KEY = "txName";
 
     // Tracks thread-specific values when using multiple threads during snapshot
     private final ThreadLocal<String> rowId = new ThreadLocal<>();
@@ -44,6 +45,7 @@ public class SourceInfo extends BaseSourceInfo {
 
     // Offset and Source information block
     private String transactionId;
+    private String transactionName;
     private Long transactionSequence;
 
     // Source information block
@@ -134,6 +136,14 @@ public class SourceInfo extends BaseSourceInfo {
 
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
+    }
+
+    public String getTransactionName() {
+        return transactionName;
+    }
+
+    public void setTransactionName(String transactionName) {
+        this.transactionName = transactionName;
     }
 
     public Long getTransactionSequence() {
