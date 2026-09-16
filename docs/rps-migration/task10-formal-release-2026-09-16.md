@@ -87,3 +87,30 @@ The failed anonymous client upload and the first POM-only command produced no
 assets. Credentials were supplied only through permission-restricted temporary
 settings files, removed after each command; no credential was written to either
 repository or the user Maven settings.
+
+## RPS develop alignment
+
+RPS `develop` commit `f9c94346eb` imports
+`io.debezium:debezium-rps-bom:3.6.2-20260916.Final` and removes the former
+per-artifact RPS Debezium pins and connector exclusions. Its resolved runtime
+contains:
+
+- the dated internal MySQL, MariaDB, Oracle, embedded, storage, parser, and
+  shared components at `3.6.2-20260916.Final`;
+- `dataknown-mysql-binlog-connector-java:0.41.2-20260916.Final` exactly once;
+- unmodified PostgreSQL, DB2, and SQL Server connectors at upstream
+  `3.6.2.Final`;
+- Kafka Connect artifacts converged to RPS-managed `3.7.0`;
+- one Oracle connector coordinate, `io.debezium:debezium-connector-oracle`.
+
+The independently sourced AS400 RPC connector remains an explicit exception:
+`io.debezium.connector.db2as400:ibmi-jdbc`, `ibmi-journal-parsing`, and its
+CCSID helper remain at `3.0.3.Final`. Nexus has no 3.6 build of the RPC
+connector, and RPS instantiates its non-upstream
+`io.debezium.connector.db2as400.As400RpcConnector` class. It has no POM and
+therefore cannot pull an old Debezium core transitively. Migrating that product
+requires a separate source-compatible AS400 release and acceptance environment.
+
+`mvn clean package -DskipTests -DskipITs` under JDK 17 completed successfully
+for all five RPS reactor modules. Test sources compiled, but tests were
+explicitly skipped; this is clean build evidence, not an RPS runtime test pass.

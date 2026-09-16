@@ -16,7 +16,10 @@
 - Never force-push or overwrite an existing Nexus release coordinate.
 - Use fixed date-formatted coordinates `0.41.2-20260916.Final` and `3.6.2-20260916.Final`, plus an internal BOM with POM metadata.
 - Verify uploaded assets by HTTP status and SHA-256 before changing RPS.
-- Change only Debezium dependency declarations on RPS `develop`; reject residual Debezium 3.0.3 and duplicate client/Kafka Connect versions.
+- Change only Debezium dependency declarations on RPS `develop`; reject residual
+  3.0.3 from the RPS Debezium runtime, duplicate clients, and duplicate Kafka
+  Connect versions. Preserve the separately sourced AS400 RPC connector at
+  3.0.3 until that product has a compatible 3.6 release.
 - Do not call package success a test pass when tests were skipped.
 
 ---
@@ -85,8 +88,17 @@ Publication evidence is recorded in
 - Consumes: verified Task 3 BOM and component coordinates.
 - Produces: RPS develop dependency tree containing only the formal 3.6 runtime.
 
-- [ ] **Step 1: Refresh `origin/develop`, preserve all unrelated RPS working-tree changes, and identify the exact dependency declarations.**
-- [ ] **Step 2: Replace direct 3.0.3/SNAPSHOT declarations with the formal BOM and any required explicit runtime components.**
-- [ ] **Step 3: Run dependency trees for every consuming RPS module and reject 3.0.3, duplicate binlog clients, duplicate Oracle connectors, or multiple Kafka Connect APIs.**
-- [ ] **Step 4: Run the RPS JDK 17 clean build and the configured acceptance entrypoint; report actual test execution counts.**
-- [ ] **Step 5: Commit only the exact RPS dependency files on develop and record the final commit and resolved coordinates.**
+- [x] **Step 1: Refresh `origin/develop`, preserve all unrelated RPS working-tree changes, and identify the exact dependency declarations.**
+- [x] **Step 2: Replace direct 3.0.3/SNAPSHOT declarations with the formal BOM and any required explicit runtime components.**
+- [x] **Step 3: Run dependency trees for every consuming RPS module and reject old RPS Debezium releases, duplicate binlog clients, duplicate Oracle connectors, or multiple Kafka Connect APIs.**
+- [x] **Step 4: Run the RPS JDK 17 clean build and report the exact test-execution boundary.**
+- [x] **Step 5: Commit only the exact RPS dependency files on develop and record the final commit and resolved coordinates.**
+
+RPS `develop` commit `f9c94346eb` imports
+`io.debezium:debezium-rps-bom:3.6.2-20260916.Final`. The JDK 17 clean package
+completed successfully for all five reactor modules with tests explicitly
+skipped. The resolved tree contains one internal client, one Oracle connector,
+and Kafka Connect `3.7.0`. The only 3.0.3 coordinates are the independently
+sourced AS400 RPC binary and its journal parser; Nexus contains no compatible
+3.6 AS400 RPC release, so replacing it is a separate product migration rather
+than part of this Debezium fork release.
