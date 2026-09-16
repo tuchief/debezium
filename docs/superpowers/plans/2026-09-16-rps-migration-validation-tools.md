@@ -89,4 +89,9 @@
 - [x] **Step 2:** Add complete `exec:java` commands for MySQL, GoldenDB, MariaDB, and Oracle plus expected `ENGINE_SUMMARY` evidence.
 - [x] **Step 3:** Document offset/history isolation, finite duration, restart validation, credential handling, and cleanup.
 - [x] **Step 4:** Run unit tests and package; report executed test counts separately from skipped live validation.
-- [ ] **Step 5:** Assert the root POM does not reference the tool, scan for secrets/absolute developer paths, run `git diff --check`, review the task-owned diff, and commit the implementation.
+- [x] **Step 5:** Assert the root POM does not reference the tool, scan for secrets/absolute developer paths, run `git diff --check`, review the task-owned diff, and commit the implementation.
+
+Implementation commit: `1f16b88dc9`. JDK 21 clean package executed 11 tests
+with zero failures, errors, or skips. All four entry points were present in the
+resulting JAR and reached required configuration validation through their
+documented `exec:java` command. No live database validation was executed.
