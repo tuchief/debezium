@@ -56,6 +56,20 @@ API, util, config, embedded, connect-plugins, storage, PostgreSQL, DB2, SQL
 Server, and IBM i remain at official `3.6.2.Final`. The effective BOM and the
 RPS dependency tree independently confirmed this split.
 
+### Independent component version policy
+
+The BOM source uses one version property per customized artifact. A later
+change publishes only the changed artifact and a new BOM; unchanged artifacts
+retain their previous dated versions. Rebuilding the full custom set is
+required only when an incompatible API or POM change propagates to dependent
+components.
+
+The BOM version identifies the validated dependency set and may therefore be
+newer than some component versions. RPS updates only
+`version.debezium.rps.bom`; it does not duplicate individual component
+versions. With the required pure `yyyyMMdd` format, each artifact and the BOM
+can have at most one formal release per calendar day.
+
 ## Published and independently downloaded assets
 
 The client main JAR, POM, sources, and javadoc all returned HTTP 200 and
@@ -110,6 +124,12 @@ independent download:
 
 Its POM returned HTTP 200, matched the source byte-for-byte, and its nonexistent
 JAR path returned HTTP 404.
+
+That checksum describes the immutable published release POM. A later source
+commit split the shared custom-version property into seven independent
+properties without changing any effective coordinate; the published
+`20260916` POM was not overwritten. The independent properties take effect in
+the next dated BOM release.
 
 The failed anonymous client upload and the first POM-only command produced no
 assets. Credentials were supplied only through permission-restricted temporary

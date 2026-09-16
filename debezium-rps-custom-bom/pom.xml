@@ -14,8 +14,13 @@
 
     <properties>
         <debezium.upstream.version>3.6.2.Final</debezium.upstream.version>
-        <debezium.rps.version>3.6.2-20260916.Final</debezium.rps.version>
-        <mysql.binlog.rps.version>0.41.2-20260916.Final</mysql.binlog.rps.version>
+        <version.mysql-binlog-client.rps>0.41.2-20260916.Final</version.mysql-binlog-client.rps>
+        <version.debezium.rps.connector-common>3.6.2-20260916.Final</version.debezium.rps.connector-common>
+        <version.debezium.rps.ddl-parser>3.6.2-20260916.Final</version.debezium.rps.ddl-parser>
+        <version.debezium.rps.connector-binlog>3.6.2-20260916.Final</version.debezium.rps.connector-binlog>
+        <version.debezium.rps.connector-mysql>3.6.2-20260916.Final</version.debezium.rps.connector-mysql>
+        <version.debezium.rps.connector-mariadb>3.6.2-20260916.Final</version.debezium.rps.connector-mariadb>
+        <version.debezium.rps.connector-oracle>3.6.2-20260916.Final</version.debezium.rps.connector-oracle>
     </properties>
 
     <dependencyManagement>
@@ -31,37 +36,37 @@
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>dataknown-mysql-binlog-connector-java</artifactId>
-                <version>${mysql.binlog.rps.version}</version>
+                <version>${version.mysql-binlog-client.rps}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-common</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.connector-common}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-ddl-parser</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.ddl-parser}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-binlog</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.connector-binlog}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-mysql</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.connector-mysql}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-mariadb</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.connector-mariadb}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-oracle</artifactId>
-                <version>${debezium.rps.version}</version>
+                <version>${version.debezium.rps.connector-oracle}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
